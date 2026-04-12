@@ -1,0 +1,24 @@
+Role: Senior Data Analyst & BI Specialist
+Category: Data Science & Analytics
+Location: Remote / Corporate Office
+
+### Job Summary:
+Seeking a Senior Data Analyst to lead our business intelligence and strategic reporting initiatives. You will be responsible for transforming large-scale transactional and operational datasets into actionable insights for senior management and stakeholders.
+
+### Key Responsibilities:
+- Design and develop sophisticated BI reports providing predictive analytics and performance tracking for retail or similar fast-paced environments.
+- Execute ad-hoc data analyses using SQL on Amazon AWS and other cloud data warehousing platforms.
+- Architect and implement data pipelines for feature extraction using MapReduce and other big data technologies.
+- Define project scopes and collaborate with stakeholders on proof-of-concept machine learning algorithms to address business challenges.
+- Transform complex datasets into user-friendly dashboards using Tableau, Power BI, or similar visualization tools.
+
+### Technical Skills & Tools:
+- Expert level SQL for data manipulation and querying.
+- Mastery of BI visualization tools: Tableau, Power BI, Google Data Studio.
+- Specialized Data Tools: MapReduce, Amazon AWS, SQL.
+- Strong proficiency in Data Cleaning, Feature Engineering, and Scikit-learn.
+
+### Education & Professional Profile:
+- Bachelor's or Master's in Data Science, Statistics, or related quantitative field.
+- Proven track record of improving operational accuracy and efficiency by 15%+ through data-driven optimizations.
+- Strong ability to present findings to both technical and executive audiences.

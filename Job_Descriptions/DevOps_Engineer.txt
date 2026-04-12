@@ -1,0 +1,26 @@
+Role: Senior DevOps & Infrastructure Manager
+Category: Infrastructure & Platform Engineering
+Location: Remote / International
+
+### Job Summary:
+Seeking a deeply experienced Senior DevOps Engineer and Infrastructure Manager (14+ years) to lead our cloud transformation and CI/CD automation strategies. You will be responsible for orchestrating end-to-end software delivery lifecycles, managing large-scale AWS infrastructure, and migrating complex on-premise application suites to the cloud with high availability.
+
+### Key Responsibilities:
+- Lead the management of production and non-production instances at scale across multiple global regions (APAC, EMEA, AMS).
+- Develop fully automated Terraform and CloudFormation workflows for multi-resource provisioning and environment management.
+- Architect and implement complex CI/CD pipelines using Jenkins (Groovy/PowerShell) and GitLab CI/CD.
+- Oversee infrastructure security including security patching, OS updates, and DevSecOps integrations (SonarQube, Fortify).
+- Set up and manage monitoring and logging infrastructure using ELK Stack, Splunk, and Dynatrace.
+- Execute strategic migrations of on-premise applications to AWS with a focus on cost optimization and redundancy.
+
+### Technical Skills & Tools:
+- Cloud Platforms: Mastery of AWS services (S3, CloudFront, ACM, Route53, API Gateway, Lambda, ECS, IAM).
+- IaC & Automation: Expert level Terraform, CloudFormation, Jenkins, Git.
+- Operating Systems & Database: Linux (RHEL), Solaris, Windows, Oracle, Sybase, MSSQL, DynamoDB.
+- Specializations: Unix Shell, PowerShell, and Python development for infrastructure automation.
+
+### Experience & Education:
+- 12+ years of experience in DevOps and Infrastructure Management.
+- Bachelor of Technology in Computer Science & Engineering.
+- Must hold multiple professional AWS Certifications (Solutions Architect, Developer, or Data Engineer).
+- Proven track record of managing end-to-end IT infrastructure in fast-paced Agile environments.

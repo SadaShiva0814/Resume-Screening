@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}Upload Resumes — AI Resume Screening{% endblock %}
+
+{% block content %}
+<div class="upload-container">
+    <h1>Screen Resumes</h1>
+    <p class="upload-subtitle">Upload candidate resumes and paste the job description to begin AI-powered screening.</p>
+
+    <form id="screening-form" enctype="multipart/form-data">
+        <div class="form-grid">
+            <!-- Left: Job Description -->
+            <div class="form-section" style="display: flex; flex-direction: column; height: 100%;">
+                <h3>📝 Job Description</h3>
+                <textarea id="job-description" name="job_description" style="flex: 1; min-height: 150px; margin-bottom: 1rem;"
+                    placeholder="Paste the full job description here..."
+                    required></textarea>
+                
+                <div class="form-row" style="margin-top: auto;">
+                    <div class="form-group">
+                        <label for="job-category">Job Category</label>
+                        <input type="text" id="job-category" name="job_category" class="form-control" placeholder="e.g. Data Science" value="General" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: File Upload -->
+            <div class="form-section" style="display: flex; flex-direction: column; height: 100%;">
+                <h3>📄 Resume Files</h3>
+                <div class="drop-zone" id="drop-zone">
+                    <div class="drop-zone-content">
+                        <span class="drop-icon">📁</span>
+                        <p>Drag & drop resume files here</p>
+                        <p class="drop-hint">or click to browse</p>
+                        <p class="drop-formats">PDF, DOCX, TXT supported</p>
+                    </div>
+                    <input type="file" id="file-input" name="files[]" multiple
+                        accept=".pdf,.docx,.doc,.txt" style="display:none">
+                </div>
+                <div id="file-list" class="file-list"></div>
+                <p class="file-count" id="file-count">0 files selected</p>
+
+                <!-- Section Weights (Collapsible) -->
+                <details class="weights-section" style="margin-top: auto;">
+                    <summary>⚙️ Advanced: Section Weights</summary>
+                    <div class="weights-grid">
+                        <div class="weight-item">
+                            <label>Skills</label>
+                            <input type="range" min="0" max="100" value="50" class="weight-slider" data-section="skills">
+                            <span class="weight-value">50%</span>
+                        </div>
+                        <div class="weight-item">
+                            <label>Experience</label>
+                            <input type="range" min="0" max="100" value="35" class="weight-slider" data-section="experience">
+                            <span class="weight-value">35%</span>
+                        </div>
+                        <div class="weight-item">
+                            <label>Projects</label>
+                            <input type="range" min="0" max="100" value="15" class="weight-slider" data-section="projects">
+                            <span class="weight-value">15%</span>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
+                <span>🧠</span> Start AI Screening
+            </button>
+        </div>
+    </form>
+
+    <!-- Progress overlay -->
+    <div class="progress-overlay" id="progress-overlay" style="display:none">
+        <div class="progress-card">
+            <div class="spinner"></div>
+            <h3>Processing Resumes...</h3>
+            <p id="progress-text">Extracting text and analyzing with AI...</p>
+            <p class="progress-sub">This may take a moment for large batches</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('screening-form');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
+    const fileCount = document.getElementById('file-count');
+    const progressOverlay = document.getElementById('progress-overlay');
+    const submitBtn = document.getElementById('submit-btn');
+
+    let selectedFiles = [];
+
+    // Drop zone handling
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        addFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', () => {
+        addFiles(fileInput.files);
+    });
+
+    function addFiles(files) {
+        for (let f of files) {
+            if (!selectedFiles.find(sf => sf.name === f.name)) {
+                selectedFiles.push(f);
+            }
+        }
+        updateFileList();
+    }
+
+    function removeFile(index) {
+        selectedFiles.splice(index, 1);
+        updateFileList();
+    }
+
+    function updateFileList() {
+        fileList.innerHTML = '';
+        selectedFiles.forEach((f, i) => {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.innerHTML = `
+                <span class="file-name">📄 ${f.name}</span>
+                <span class="file-size">${(f.size / 1024).toFixed(1)} KB</span>
+                <button type="button" class="file-remove" onclick="document.dispatchEvent(new CustomEvent('removeFile', {detail: ${i}}))">✕</button>
+            `;
+            fileList.appendChild(div);
+        });
+        fileCount.textContent = `${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''} selected`;
+    }
+
+    document.addEventListener('removeFile', (e) => removeFile(e.detail));
+
+    // Weight sliders
+    document.querySelectorAll('.weight-slider').forEach(slider => {
+        slider.addEventListener('input', function() {
+            this.nextElementSibling.textContent = this.value + '%';
+        });
+    });
+
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const jd = document.getElementById('job-description').value.trim();
+        if (!jd) { alert('Please enter a job description'); return; }
+        if (selectedFiles.length === 0) { alert('Please upload at least one resume'); return; }
+
+        // Build form data
+        const formData = new FormData();
+        formData.append('job_description', jd);
+        formData.append('job_category', document.getElementById('job-category').value);
+
+        // Add weights
+        const weights = {};
+        document.querySelectorAll('.weight-slider').forEach(slider => {
+            weights[slider.dataset.section] = parseInt(slider.value) / 100;
+        });
+        formData.append('weights', JSON.stringify(weights));
+
+        // Add files
+        selectedFiles.forEach(f => formData.append('files[]', f));
+
+        // Show progress
+        progressOverlay.style.display = 'flex';
+        submitBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/screen', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                window.location.href = data.redirect;
+            } else {
+                alert('Screening failed: ' + (data.error || 'Unknown error'));
+                progressOverlay.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        } catch (err) {
+            alert('Error: ' + err.message);
+            progressOverlay.style.display = 'none';
+            submitBtn.disabled = false;
+        }
+    });
+});
+</script>
+{% endblock %}

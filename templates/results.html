@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}Results — AI Resume Screening{% endblock %}
+
+{% block content %}
+<div class="results-container" style="max-width: 1200px; padding: 0 20px;">
+    <div class="results-header">
+        <div class="results-meta">
+            <h1>Screening Results</h1>
+            <p>{{ candidates|length }} candidates ranked by semantic relevance</p>
+            <div class="results-actions">
+                <a href="/analytics/{{ session._id }}" class="btn btn-outline">📊 Analytics</a>
+                <a href="/upload" class="btn btn-outline">🔄 New Screening</a>
+            </div>
+        </div>
+        <div class="jd-preview">
+            <h4>Job Description</h4>
+            <p class="jd-text">{{ session.job_description[:300] }}{% if session.job_description|length > 300 %}...{% endif %}</p>
+        </div>
+    </div>
+
+    <style>
+        .candidates-list { display: flex; flex-direction: column; gap: 5px; }
+        .candidate-card { padding: 0 !important; border-radius: 8px; overflow: hidden; background: var(--bg-card); display: block !important; }
+        .table-header { 
+            display: grid; 
+            grid-template-columns: 3fr 2.5fr 100px 100px 180px; 
+            gap: 20px; 
+            padding: 12px 24px; 
+            font-weight: 600; 
+            font-size: 0.85rem; 
+            color: var(--text-muted); 
+            border-bottom: 2px solid var(--border); 
+            margin-bottom: 15px;
+        }
+        .candidate-row { 
+            display: grid; 
+            grid-template-columns: 3fr 2.5fr 100px 100px 180px; 
+            gap: 20px; 
+            padding: 16px 24px; 
+            align-items: center; 
+            transition: background 0.2s; 
+            font-size: 0.9rem; 
+        }
+        .table-header > div:nth-child(4), .col-exp { text-align: center; justify-content: center; }
+        .table-header > div:nth-child(5), .col-actions { text-align: center; justify-content: center; }
+        .candidate-row:hover { background: var(--bg-card-hover); cursor: pointer; }
+        .col-name { display: flex; align-items: center; gap: 10px; }
+        .col-name .rank-badge { width: 28px; height: 28px; font-size: 0.75rem; flex-shrink: 0; margin: 0; border-width: 1px; }
+        .col-name-text { display: flex; flex-direction: column; }
+        .col-name-text h3 { margin: 0; font-size: 0.9rem; font-weight: 600; line-height: 1.2; }
+        .col-role { color: var(--text-secondary); font-size: 0.8rem; line-height: 1.2; }
+        .col-skills { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8rem; }
+        .col-actions { display: flex; gap: 8px; align-items: center; }
+        .btn-action { padding: 6px 12px; font-size: 0.75rem; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-weight: 600; background: var(--bg-input); color: var(--text-secondary); transition: all 0.2s; }
+        .btn-action.shortlist:hover { background: var(--success); color: white; border-color: var(--success); }
+        .btn-action.reject:hover { background: var(--danger); color: white; border-color: var(--danger); }
+        .score-bar-container { height: 6px; width: 100px; background: var(--bg-input); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+        .score-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 3px; }
+        
+        /* Utility classes to avoid IDE inline style linting */
+        .u-hide { display: none; }
+        .u-flex { display: flex; }
+        .u-text-success { color: var(--success); }
+        .u-text-danger { color: var(--danger); }
+    </style>
+
+
+
+    <div class="candidates-list" id="candidates-container">
+        <div class="table-header">
+            <div>Name</div>
+            <div>Role</div>
+            <div>Match Score</div>
+            <div>Experience</div>
+            <div>Status</div>
+        </div>
+        {% for candidate in candidates %}
+        <div class="candidate-card rank-{{ 'top' if candidate.rank <= 3 else 'normal' }} {{ 'feedback-' + candidate.feedback_status if candidate.feedback_status else '' }}" 
+             data-candidate-id="{{ candidate._id }}"
+             data-session-id="{{ session._id }}"
+             data-status="{{ candidate.feedback_status or 'pending' }}">
+             
+            <!-- Compact Grid View -->
+            <div class="candidate-row" onclick="toggleDetails(this)">
+                <!-- 1. Name & Rank -->
+                <div class="col-name">
+                    <span class="rank-badge {% if candidate.rank == 1 %}gold{% elif candidate.rank == 2 %}silver{% elif candidate.rank == 3 %}bronze{% endif %}">
+                        #{{ candidate.rank }}
+                    </span>
+                    <div class="col-name-text">
+                        <h3 style="margin: 0; font-size: 0.95rem; font-weight: 600; line-height: 1.2;">{{ candidate.candidate_name }}</h3>
+                    </div>
+                </div>
+
+                <!-- 2. Role -->
+                <div class="col-role">
+                    {{ candidate.role if candidate.role else session.job_category|replace('_',' ')|title }}
+                </div>
+
+                <!-- 3. Match Score -->
+                <div class="col-score">
+                    <div style="font-size: 0.8rem; font-weight: 600;">{{ (candidate.overall_score * 100)|round(0)|int }}%</div>
+                    <div class="score-bar-container">
+                        {% set score_pct = (candidate.overall_score * 100)|int %}
+                        <div class="score-bar-fill" data-width="{{ score_pct }}%"></div>
+                    </div>
+                </div>
+
+
+
+                <!-- 5. Experience -->
+                <div class="col-exp" style="color: var(--text-secondary); font-size: 0.8rem;">
+                    {{ candidate.years_of_experience|int }} years
+                </div>
+
+                <!-- 6. Status Actions -->
+                <div class="col-actions">
+                    <div class="action-buttons {% if candidate.feedback_status %}u-hide{% else %}u-flex{% endif %}" style="gap: 8px;">
+                        <button class="btn-action shortlist feedback-btn" data-action="shortlisted" title="Shortlist" onclick="event.stopPropagation();">✓ Shortlist</button>
+                        <button class="btn-action reject feedback-btn" data-action="rejected" title="Reject" onclick="event.stopPropagation();">✕ Remove</button>
+                    </div>
+                    <div class="status-indicator {% if candidate.feedback_status %}u-flex{% else %}u-hide{% endif %}" style="align-items: center; gap: 8px;">
+                        <span class="status-text {% if candidate.feedback_status == 'shortlisted' %}u-text-success{% else %}u-text-danger{% endif %}" style="font-size: 0.85rem; font-weight: 600;">
+                            {% if candidate.feedback_status == 'shortlisted' %}✓ Shortlisted{% else %}✕ Removed{% endif %}
+                        </span>
+                        <button class="btn-action feedback-btn" data-action="undo" title="Undo" style="padding: 4px 8px; border: none; background: transparent; color: var(--text-secondary); opacity: 0.7;" onclick="event.stopPropagation();">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Elaborated Details View (Hidden by default) -->
+            <div class="candidate-details" style="display: none; padding: 24px; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.1);">
+                <div class="candidate-analysis" style="gap: 40px; margin-bottom: 20px;">
+                    {% if candidate.extracted_skills %}
+                    <div class="skills" style="flex: 1;">
+                        <h4 style="color: var(--text); font-size: 0.95rem; margin-bottom: 12px;">⚡ Key Skills</h4>
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            {% for skill in candidate.extracted_skills[:12] %}
+                            <span style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary); padding: 4px 10px; border-radius: 12px; font-size: 0.75rem;">{{ skill }}</span>
+                            {% endfor %}
+                            {% if candidate.extracted_skills|length > 12 %}
+                            <span style="color: var(--text-muted); font-size: 0.75rem; padding: 4px;">+{{ candidate.extracted_skills|length - 12 }} more</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if candidate.strengths %}
+                    <div class="strengths" style="flex: 1;">
+                        <h4 style="color: var(--text); font-size: 0.95rem; margin-bottom: 12px;">💪 Strengths</h4>
+                        <ul style="padding-left: 0; margin: 0;">{% for s in candidate.strengths[:3] %}<li style="margin-bottom: 6px;">{{ s }}</li>{% endfor %}</ul>
+                    </div>
+                    {% endif %}
+                    
+                    {% if candidate.gaps %}
+                    <div class="gaps" style="flex: 1;">
+                        <h4 style="color: var(--text); font-size: 0.95rem; margin-bottom: 12px;">⚠️ Gaps</h4>
+                        <ul style="padding-left: 0; margin: 0;">{% for g in candidate.gaps[:2] %}<li style="margin-bottom: 6px;">{{ g }}</li>{% endfor %}</ul>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="candidate-actions" style="margin-top: 10px; border-top: none; padding-top: 0;">
+                    <a href="/candidate/{{ candidate._id }}" class="btn btn-outline btn-sm">Full Profile</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll('.score-bar-fill').forEach(bar => {
+        if (bar.dataset.width) bar.style.width = bar.dataset.width;
+    });
+});
+
+function toggleDetails(element) {
+    const card = element.closest('.candidate-card');
+    const details = card.querySelector('.candidate-details');
+    
+    if (details.style.display === 'none' || details.style.display === '') {
+        details.style.display = 'flex';
+        details.style.flexDirection = 'column';
+    } else {
+        details.style.display = 'none';
+    }
+}
+
+document.querySelectorAll('.feedback-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+        e.stopPropagation();
+        const card = this.closest('.candidate-card');
+        const candidateId = card.dataset.candidateId;
+        const sessionId = card.dataset.sessionId;
+        const action = this.dataset.action;
+
+        try {
+            const resp = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    candidate_id: candidateId,
+                    action: action
+                })
+            });
+            const data = await resp.json();
+            if (data.success || data === 'undo') {
+                const actionContainer = card.querySelector('.action-buttons');
+                const statusContainer = card.querySelector('.status-indicator');
+                const statusText = statusContainer.querySelector('.status-text');
+
+                if (action === 'undo') {
+                    card.classList.remove('feedback-shortlisted', 'feedback-rejected');
+                    card.dataset.status = 'pending';
+                    actionContainer.style.display = 'flex';
+                    statusContainer.style.display = 'none';
+                } else {
+                    card.classList.remove('feedback-shortlisted', 'feedback-rejected');
+                    card.classList.add(`feedback-${action}`);
+                    card.dataset.status = action;
+                    
+                    statusText.style.color = action === 'shortlisted' ? 'var(--success)' : 'var(--danger)';
+                    statusText.textContent = action === 'shortlisted' ? '✓ Shortlisted' : '✕ Removed';
+                    
+                    actionContainer.style.display = 'none';
+                    statusContainer.style.display = 'flex';
+                }
+            }
+        } catch (err) {
+            console.error('Feedback failed:', err);
+        }
+    });
+});
+</script>
+{% endblock %}

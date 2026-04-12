@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}AI Resume Screening — Home{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-badge">AI-Powered • NLP-Driven • Semantic Understanding</div>
+        <h1>Intelligent Resume Screening</h1>
+        <p class="hero-subtitle">
+            Go beyond keyword matching. Our ML-powered system <strong>semantically understands</strong>
+            resumes — analyzing skills, experience, education, and projects to rank candidates
+            by true relevance, not just keyword overlap.
+        </p>
+        <div class="hero-actions">
+            <a href="/upload" class="btn btn-primary btn-lg">
+                <span>🚀</span> Start Screening
+            </a>
+            <a href="/history" class="btn btn-outline btn-lg">
+                <span>📋</span> View History
+            </a>
+        </div>
+    </div>
+</section>
+
+<section class="features">
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">🧠</div>
+            <h3>Semantic Understanding</h3>
+            <p>Uses Sentence-BERT to understand the <em>meaning</em> of resumes, not just keywords. "Python developer" and "Software engineer with Python expertise" are understood as similar.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Section-Aware Scoring</h3>
+            <p>Separately analyzes Skills, Experience, Education, Projects — each weighted by importance. A senior role weighs experience higher; a fresher role values projects more.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📈</div>
+            <h3>Self-Improving Model</h3>
+            <p>Learns from your feedback. Shortlist or reject candidates, and the model adapts its scoring for future rounds — getting better with every use.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Bulk Processing</h3>
+            <p>Upload 100s of resumes at once. The system processes PDFs, DOCX, and TXT files, even handling scanned/image PDFs with OCR technology.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3>Strengths & Gaps Analysis</h3>
+            <p>For each candidate, see what makes them strong and where they fall short — with semantic reasoning, not just missing-keyword lists.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔬</div>
+            <h3>vs Keyword Comparison</h3>
+            <p>Built-in evaluation shows how our semantic approach outperforms traditional keyword-based ATS systems. Proof, not claims.</p>
+        </div>
+    </div>
+</section>
+
+<section class="how-it-works">
+    <h2>How It Works</h2>
+    <div class="steps">
+        <div class="step">
+            <div class="step-number">1</div>
+            <h4>Upload Resumes + Job Description</h4>
+            <p>Upload candidate resumes in any format and paste the job description.</p>
+        </div>
+        <div class="step">
+            <div class="step-number">2</div>
+            <h4>AI Analyzes & Ranks</h4>
+            <p>NLP parses sections, SBERT encodes semantics, cosine similarity ranks candidates.</p>
+        </div>
+        <div class="step">
+            <div class="step-number">3</div>
+            <h4>Review & Give Feedback</h4>
+            <p>See ranked results with scores. Shortlist the best — the model learns your preferences.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

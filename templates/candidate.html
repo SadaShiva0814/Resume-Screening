@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Candidate Details — AI Resume Screening{% endblock %}
+
+{% block content %}
+<div class="candidate-detail-container">
+    <a href="/results/{{ candidate.session_id }}" class="back-link">← Back to Results</a>
+    
+    <div class="detail-header">
+        <div class="detail-rank">
+            <span class="rank-badge-lg">#{{ candidate.rank }}</span>
+        </div>
+        <div>
+            <h1>{{ candidate.candidate_name }}</h1>
+            <div class="detail-meta">
+                {% if candidate.email %}<span>📧 {{ candidate.email }}</span>{% endif %}
+                {% if candidate.phone %}<span>📱 {{ candidate.phone }}</span>{% endif %}
+                {% if candidate.linkedin %}<span>🔗 LinkedIn: {{ candidate.linkedin }}</span>{% endif %}
+                {% if candidate.github %}<span>💻 GitHub: {{ candidate.github }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="detail-overall-score">
+            <div class="score-circle-lg" data-score="{{ (candidate.overall_score * 100)|int }}">
+                <span>{{ (candidate.overall_score * 100)|round(1) }}%</span>
+            </div>
+            <span>Overall Match</span>
+        </div>
+    </div>
+
+    <div class="detail-grid">
+        <!-- Section Scores -->
+        <div class="detail-card">
+            <h3>📊 Section-wise Scores</h3>
+            <div class="detail-section-bars">
+                {% for section, score in candidate.section_scores.items() %}
+                <div class="detail-bar">
+                    <div class="detail-bar-header">
+                        <span>{{ section|title }}</span>
+                        <span>{{ ([score * 100, 100]|min)|round(1) }}%</span>
+                    </div>
+                    <div class="bar-track-lg">
+                        <div class="bar-fill" data-width="{{ ([score * 100, 100]|min)|int }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="detail-card">
+            <h3>📋 Quick Stats</h3>
+            <div class="stats-grid">
+                <div class="stat">
+                    <span class="stat-value">{{ candidate.years_of_experience|int }}</span>
+                    <span class="stat-label">Years Experience</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">{{ candidate.education_level|replace('_',' ')|title if candidate.education_level != 'unknown' else 'N/A' }}</span>
+                    <span class="stat-label">Education</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">{{ candidate.extracted_skills|length }}</span>
+                    <span class="stat-label">Skills Found</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">{{ candidate.percentile }}%</span>
+                    <span class="stat-label">Percentile</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strengths -->
+        <div class="detail-card">
+            <h3>💪 Strengths</h3>
+            <ul class="analysis-list strengths-list">
+                {% for s in candidate.strengths %}
+                <li>{{ s }}</li>
+                {% endfor %}
+                {% if not candidate.strengths %}
+                <li class="empty">No specific strengths identified</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- Gaps -->
+        <div class="detail-card">
+            <h3>⚠️ Gaps</h3>
+            <ul class="analysis-list gaps-list">
+                {% for g in candidate.gaps %}
+                <li>{{ g }}</li>
+                {% endfor %}
+                {% if not candidate.gaps %}
+                <li class="empty">No significant gaps found</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- Skills -->
+        <div class="detail-card full-width">
+            <h3>🛠️ Extracted Skills</h3>
+            <div class="skills-tags">
+                {% for skill in candidate.extracted_skills %}
+                <span class="skill-tag">{{ skill }}</span>
+                {% endfor %}
+                {% if not candidate.extracted_skills %}
+                <span class="empty">No skills could be extracted</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Resume Sections (Formatted) -->
+        {% set section_icons = {
+            'summary': '📝',
+            'experience': '💼',
+            'education': '🎓',
+            'skills': '⚡',
+            'projects': '🚀'
+        } %}
+        {% for section_name, section_text in candidate.section_texts.items() %}
+        {% if section_text and section_text.strip() %}
+        <div class="detail-card full-width resume-section-card">
+            <h3>{{ section_icons.get(section_name, '📄') }} {{ section_name|title }}</h3>
+            <div class="section-content">
+                {% for paragraph in section_text.split('\n') %}
+                    {% if paragraph.strip() %}
+                        <p>{{ paragraph.strip() }}</p>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll('.bar-fill').forEach(bar => {
+        if (bar.dataset.width) bar.style.width = bar.dataset.width;
+    });
+    document.querySelectorAll('.score-circle-lg').forEach(circle => {
+        if (circle.dataset.score) circle.style.setProperty('--score', circle.dataset.score);
+    });
+});
+</script>
+{% endblock %}

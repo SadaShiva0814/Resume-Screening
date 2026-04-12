@@ -1,0 +1,24 @@
+Role: Senior Software Engineer (Research & Development)
+Category: Software Engineering
+Location: Atlanta / Remote
+
+### Job Summary:
+Seeking a high-caliber Software Engineer with a strong Research & Development background to lead automated algorithm design and framework optimization. You will be responsible for developing evolutionary multi-objective engine frameworks and optimizing performance across high-performance computing (HPC) clusters.
+
+### Key Responsibilities:
+- Lead the development of Automated Algorithm Design frameworks (e.g., EMADE - Evolutionary Multi-objective Algorithm Design Engine).
+- Implement multi-island models with dynamic migration topologies to improve population diversity in algorithmic solutions.
+- Optimize framework performance to achieve significant improvements in convergence speed and objective coverage while reducing computational overhead.
+- Architect high-performance web crawlers and full-stack job platforms processing large volumes of listings with minimal response time.
+- Conduct Google-sponsored or similar high-level research in automated algorithm design.
+
+### Technical Skills & Tools:
+- Programming: Python, Java, R, C, MATLAB, JavaScript, TypeScript.
+- Data & ML: Scikit-learn, TensorFlow, PyTorch, LangChain, Hugging Face, OpenCV.
+- Web & Tools: React, Next.js, Node.js, Express, FastAPI, Flask, PostgreSQL, MongoDB.
+- Infrastructure: Docker, Kubernetes, AWS, Azure, GCP.
+
+### Education:
+- Master of Science in Computer Science from a top-tier global university (Georgia Institute of Technology or equivalent).
+- Bachelor of Science in Computer Science with a concentration in Artificial Intelligence & Machine Learning.
+- Proven track record of high GPA (e.g., 3.9/4.0 or 4.0/4.0).

@@ -1,0 +1,29 @@
+Role: Senior AI / ML Engineer
+Category: Artificial Intelligence & Machine Learning
+Location: Remote / Flexible
+
+### Company Overview:
+We are a cutting-edge AI automation firm developing production-ready agentic systems. We specialize in LLM orchestration and high-volume data processing at the scale of 500+ million records.
+
+### Job Summary:
+Seeking a visionary Senior AI/ML Engineer to lead the development of our core agentic frameworks. In this role, you will be responsible for deploying production-ready chatbots, and architecting data pipelines for advanced LLM automation, specifically focusing on Computer Use and Browser Use capabilities.
+
+### Key Responsibilities:
+- Design and implement end-to-end AI/ML infrastructure for data collection, ETL, and model deployment.
+- Optimize and fine-tune large language models (LLMs) to enhance performance and reduce latency by significant margins.
+- Lead the development of AI models for complex projects including autolabeling, speech recognition, and object tracking.
+- Mentoring junior team members and providing technical leadership in AI engineering.
+- Collaborating with cross-functional teams to translate business requirements into technical AI specifications.
+
+### Mandatory Technical Skills:
+- Mastery of Deep Learning Frameworks: TensorFlow, PyTorch.
+- Advanced AI Libraries: LangChain, HuggingFace, Transformers, XGBoost, MLFlow.
+- Specialized NLP: LLM fine-tuning, BERT, Sentiment Analysis, Sentence Autocomplete.
+- Computer Vision: Classification, Object Detection, Deepfakes, Face Recognition.
+- Backend & Data: Python, FastAPI, Flask, SQL, MongoDB.
+
+### Education & Experience:
+- Master’s or PhD in Computer Science or AI-related engineering field.
+- Extensive experience (Senior level) in building production-grade AI systems.
+- Proven experience processing extremely large datasets (500M+ customer records).
+- Previous experience as a "Founding AI Engineer" or leading AI initiatives is highly desirable.

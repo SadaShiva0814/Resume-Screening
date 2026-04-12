@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}Screening History — AI Resume Screening{% endblock %}
+
+{% block content %}
+<div class="history-container">
+    <h1>Screening History</h1>
+    <p class="history-subtitle">View past screening sessions and their results.</p>
+
+    <div class="history-actions" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+        <div class="selection-actions" style="display: flex; align-items: center; gap: 15px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()">
+                <span>Select All</span>
+            </label>
+            <button type="button" id="bulkDeleteBtn" onclick="deleteSelectedSessions()" class="btn btn-danger btn-sm" style="display: none; background-color:rgba(239, 68, 68, 0.1); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2);">Delete Selected (<span id="selectedCount">0</span>)</button>
+        </div>
+    </div>
+
+    {% if sessions %}
+    <div class="sessions-list">
+        {% for session in sessions %}
+        <div class="session-card" style="display: flex; align-items: stretch; padding: 0;">
+            <div style="padding: 20px; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border-color);">
+                <input type="checkbox" class="session-checkbox" value="{{ session._id }}" onchange="updateSelection()">
+            </div>
+            <div class="session-info" style="flex-grow: 1; padding: 20px;">
+                <h3>{{ session.job_category|replace('_',' ')|title }} — {{ session.num_resumes }} Candidates</h3>
+                <p class="session-jd">{{ session.job_description[:150] }}...</p>
+                <div class="session-meta">
+                    <span class="session-status status-{{ session.status }}">{{ session.status|title }}</span>
+                    <span>{{ session.created_at.strftime('%d %b %Y, %I:%M %p') if session.created_at else 'N/A' }}</span>
+                </div>
+            </div>
+            <div class="session-actions" style="padding: 20px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid var(--border-color); gap: 10px;">
+                {% if session.status == 'completed' %}
+                <a href="/results/{{ session._id }}" class="btn btn-primary btn-sm">View Results</a>
+                <a href="/analytics/{{ session._id }}" class="btn btn-outline btn-sm">Analytics</a>
+                {% endif %}
+                <button type="button" onclick="deleteSession('{{ session._id }}', this)" class="btn btn-danger btn-sm" style="background-color:rgba(239, 68, 68, 0.1); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2);">Delete</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <span class="empty-icon">📋</span>
+        <h3>No screening sessions yet</h3>
+        <p>Upload resumes and a job description to start your first screening.</p>
+        <a href="/upload" class="btn btn-primary">Start Screening</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function toggleSelectAll() {
+        const isChecked = document.getElementById('selectAllCheckbox').checked;
+        const checkboxes = document.querySelectorAll('.session-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = isChecked;
+        });
+        updateSelection();
+    }
+
+    function updateSelection() {
+        const checkboxes = document.querySelectorAll('.session-checkbox');
+        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const selectedCountSpan = document.getElementById('selectedCount');
+        
+        if (checkedCount > 0) {
+            bulkDeleteBtn.style.display = 'inline-block';
+            selectedCountSpan.textContent = checkedCount;
+        } else {
+            bulkDeleteBtn.style.display = 'none';
+        }
+
+        // Update Select All checkbox state
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (checkedCount === checkboxes.length && checkboxes.length > 0) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checkedCount > 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+    }
+
+    async function deleteSelectedSessions() {
+        const checkboxes = document.querySelectorAll('.session-checkbox:checked');
+        const sessionIds = Array.from(checkboxes).map(cb => cb.value);
+
+        if (sessionIds.length === 0) return;
+
+        const btn = document.getElementById('bulkDeleteBtn');
+        const originalText = btn.innerHTML;
+
+        if (!btn.dataset.confirmed) {
+            btn.dataset.confirmed = "true";
+            btn.innerHTML = '⚠️ Click again to confirm';
+            btn.style.backgroundColor = '#fca5a5';
+            btn.style.color = '#7f1d1d';
+            
+            setTimeout(() => {
+                delete btn.dataset.confirmed;
+                btn.innerHTML = originalText;
+                btn.style.backgroundColor = '';
+                btn.style.color = '';
+            }, 3000);
+            return;
+        }
+
+        btn.innerHTML = 'Deleting...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/sessions/bulk', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ session_ids: sessionIds })
+            });
+
+            if (response.ok) {
+                // Remove elements from DOM instead of relying solely on reload for immediate UX
+                checkboxes.forEach(cb => {
+                    const card = cb.closest('.session-card');
+                    if (card) card.remove();
+                });
+                updateSelection();
+                
+                // If all deleted, reload immediately to show empty state
+                if (document.querySelectorAll('.session-card').length === 0) {
+                    window.location.reload();
+                } else {
+                    btn.innerHTML = originalText;
+                    delete btn.dataset.confirmed;
+                    btn.disabled = false;
+                }
+            } else {
+                const data = await response.json();
+                alert(`Error deleting sessions: ${data.error || 'Unknown error'}`);
+                btn.innerHTML = originalText;
+                delete btn.dataset.confirmed;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to delete sessions. Please try again.');
+            btn.innerHTML = originalText;
+            delete btn.dataset.confirmed;
+            btn.disabled = false;
+        }
+    }
+
+    async function deleteSession(sessionId, btnElement) {
+        const originalText = btnElement.innerText;
+
+        if (!btnElement.dataset.confirmed) {
+            btnElement.dataset.confirmed = "true";
+            btnElement.innerText = 'Sure?';
+            const oldBg = btnElement.style.backgroundColor;
+            const oldBorder = btnElement.style.borderColor;
+            btnElement.style.backgroundColor = '#fca5a5';
+            btnElement.style.borderColor = '#ef4444';
+            btnElement.style.color = '#7f1d1d';
+            
+            setTimeout(() => {
+                delete btnElement.dataset.confirmed;
+                btnElement.innerText = originalText;
+                btnElement.style.backgroundColor = oldBg;
+                btnElement.style.borderColor = oldBorder;
+                btnElement.style.color = '';
+            }, 3000);
+            return;
+        }
+
+        btnElement.innerText = '...';
+        btnElement.disabled = true;
+
+        try {
+            const response = await fetch(`/api/session/${sessionId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                // Remove the card immediately
+                const card = btnElement.closest('.session-card');
+                if (card) card.remove();
+                updateSelection();
+                
+                // If all deleted, reload to show empty state
+                if (document.querySelectorAll('.session-card').length === 0) {
+                    window.location.reload();
+                }
+            } else {
+                const data = await response.json();
+                alert(`Error deleting session: ${data.error || 'Unknown error'}`);
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to delete the session. Please try again.');
+            btnElement.innerText = originalText;
+            btnElement.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

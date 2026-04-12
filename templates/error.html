@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Error — AI Resume Screening{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <span class="error-icon">⚠️</span>
+    <h1>Something went wrong</h1>
+    <p>{{ message or 'An unexpected error occurred.' }}</p>
+    <a href="/" class="btn btn-primary">Return Home</a>
+</div>
+{% endblock %}

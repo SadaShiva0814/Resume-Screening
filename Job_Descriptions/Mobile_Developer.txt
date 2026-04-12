@@ -1,0 +1,25 @@
+Role: Mobile Application Developer (Senior)
+Category: Mobile Development
+Location: Remote / Los Angeles
+
+### Job Summary:
+Seeking a Senior Mobile Application Developer with 5+ years of experience in designing and developing high-performance mobile applications. You will be responsible for leading the development of complex cross-platform and hybrid applications, specifically focusing on healthcare integrations and secure data management.
+
+### Key Responsibilities:
+- Lead the development of mobile healthcare applications for iOS and Android using a mobile-first approach.
+- Implement secure login features using OAuth and other advanced authentication protocols.
+- Design and integrate complex features such as "Virtual ID Card" access and document management on mobile devices.
+- Deliver high-quality hybrid applications using Cordova, Ionic, Angular, and React Native.
+- Optimize application performance, aiming for significant reductions in load time and high user engagement metrics.
+- Managing cross-platform migrations (e.g., from legacy jQuery mobile to Angular/Ionic frameworks).
+
+### Technical Skills & Tools:
+- Expert proficiency in JavaScript ES6, ES7+, and Java EE.
+- Core Mobile Tech: React Native, Flutter, Ionic, Cordova, Angular.
+- Backend Integration: RESTful APIs, JSON, AJAX, OAuth.
+- Frontend: Responsive design with HTML5, CSS3, and modern JS frameworks.
+
+### Education & Achievements:
+- Bachelor of Science in Computer Science or related engineering field (University of California degree or similar recognized credential).
+- Proven track record of increasing user engagement by 30%+ through app optimization.
+- Strong portfolio of successfully deployed apps on the App Store and Google Play.

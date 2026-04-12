@@ -1,0 +1,25 @@
+Role: Senior Data Scientist (Machine Learning)
+Category: Data Science & AI
+Location: Los Angeles / Remote
+
+### Job Summary:
+Seeking an innovative Senior Data Scientist with 7+ years of experience in data analytics and machine learning. You will specialize in predictive modeling, hierarchical database design, and transforming complex data into strategic insights for business growth.
+
+### Key Responsibilities:
+- Develop predictive models and machine learning algorithms to analyze complex systems (e.g., chemical/biological datasets).
+- Implement statistical techniques for data mining and enhanced database query accuracy.
+- Architect and design hierarchical databases for efficient graph isomorphism searches, focusing on data retrieval optimization.
+- Engineer new Artificial Neural Network (ANN) algorithms using advanced back-propagation techniques.
+- Collaborate with engineering teams to produce clean, object-oriented code following software design best practices.
+- Conduct rigorous statistical analysis to support high-stakes R&D initiatives.
+- Implement pipelines for feature extraction using technologies like MapReduce.
+
+### Technical Skills:
+- Programming: Python, R, C, MATLAB.
+- ML/AI: Deep Learning, Natural Language Processing (NLP), Statistical Modeling.
+- Data Tools: Scikit-learn, SQL (Amazon AWS), MapReduce.
+- Visualization: Advanced data visualization and BI reporting.
+
+### Education:
+- Master of Science in Data Science or Machine Learning from a premier global university (e.g., University of California, Berkeley).
+- Strong track record of academic excellence in machine learning and statistical analysis.

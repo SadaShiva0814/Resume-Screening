@@ -1,0 +1,27 @@
+Role: Senior Application Security Engineer
+Category: Cyber Security
+Location: Remote / Flexible
+
+### Job Summary:
+Seeking a world-class Ethical Hacker and Application Security Engineer to lead our offensive security initiatives. You will be responsible for end-to-end security testing of 25+ enterprise applications, driving DevSecOps integration, and identifying critical vulnerabilities before they reach production.
+
+### Key Responsibilities:
+- Lead the Application Security Team in various web and mobile application security testing projects.
+- Perform deep source code analysis and web application penetration testing for high-stakes platforms.
+- Integrate various security testing tools (SAST/DAST) into CI/CD pipelines to establish secure coding practices.
+- Conduct threat modeling and cloud configuration reviews (AWS/GCP).
+- Actively participate in Red Team operations and Bug Bounty programs.
+- Report various vulnerabilities ranging from Critical to low level and oversee remediation efforts.
+
+### Mandatory Technical Skills:
+- Mastery of Penetration Testing and Vulnerability Assessment.
+- Strong proficiency in Python, PHP, and Bash for security automation.
+- Expertise in tools: Burp Suite, Acunetix, Checkmarx, SOAPUI, TrendMicro, and ThreadFix.
+- Solid understanding of Network Pentesting, Ethical Hacking, and API Security.
+- Experience with SIEM tools such as Splunk or McAfee.
+
+### Professional Standing & Education:
+- B. Tech in Computer Science or related engineering field.
+- Certified Ethical Hacker (CEH) or equivalent professional certification.
+- Documented "Hall of Fame" or "Researcher Spotlight" status on major platforms like Bugcrowd, Hackerone, or Synack.
+- Recognition from major global organizations (e.g., Skyscanner, Purevpn, DarkMatter) for vulnerability disclosure.

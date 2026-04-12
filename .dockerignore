@@ -1,0 +1,33 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.env
+.venv
+bin/
+lib/
+include/
+share/
+
+# Data and Uploads
+uploads/*
+!uploads/.gitkeep
+data/*
+!data/Resume.csv
+
+# Logs and Git
+.git/
+.gitignore
+*.log
+
+# Workspace/IDE
+.vscode/
+.idea/
+.gemini/
+.DS_Store
+implementation_plan.md
+walkthrough.md
+task.md

@@ -1,0 +1,27 @@
+Role: Full Stack Developer (MERN Stack)
+Category: Web Development
+Location: Remote / Flexible
+
+### Job Summary:
+Seeking a high-performance Full Stack Developer specializing in the MERN stack (MongoDB, Express, React, Node.js). You will be responsible for building responsive web applications, automating internal workflows, and optimizing website performance for enterprise client projects.
+
+### Key Responsibilities:
+- Design and develop full-stack workout trackers or similar complex applications using React, Node, and MongoDB.
+- Implement secure JWT Authentication for granular user data access and secure login flows.
+- Automate task generation for ticket raising systems using internal sync and API calling, improving operational efficiency.
+- Manage client-led international projects (e.g., Deichmann Karriere), addressing bug fixes and implementing UX improvements to drive user engagement.
+- Integrate billing systems and payment gateways (e.g., Stripe) for e-commerce platforms.
+- Architect desktop-based applications using Java AWT/Swing when required.
+
+### Technical Skills:
+- Professional proficiency in HTML, CSS, JavaScript, PHP, Wordpress, and Laravel.
+- Backend Expertise: Node.js, Express.js, PHP, Java (JDBC).
+- Frontend Expertise: React.js, UI/UX optimization, responsive design.
+- Database: MySQL, MongoDB, XAMPP Server.
+- Specialized NLP: Experience building sentiment analysis tools using Bag of Words or TF-IDF.
+
+### Education & Achievements:
+- Bachelor of Technology in Computer Engineering with a high CGPA (e.g., 9.2+).
+- Strong track record on programming platforms like LeetCode and HackerRank (300+ questions).
+- Qualified GATE (Computer Science) examination.
+- Active participant in open-source contributions (e.g., HacktoberFest).

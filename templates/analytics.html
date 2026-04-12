@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Analytics — AI Resume Screening{% endblock %}
+
+{% block content %}
+<div class="analytics-container">
+    <a href="/results/{{ session._id }}" class="back-link">← Back to Results</a>
+    <h1>📊 Screening Analytics</h1>
+
+    {% if analytics %}
+    <div class="analytics-grid">
+        <!-- Overall Assessment -->
+        {% if analytics.overall_assessment %}
+        <div class="analytics-card highlight">
+            <h3>🎯 Overall Assessment</h3>
+            <div class="grade-display">
+                <span class="grade grade-{{ analytics.overall_assessment.grade|lower }}">
+                    {{ analytics.overall_assessment.grade }}
+                </span>
+                <span class="grade-pct">{{ analytics.overall_assessment.score_percentage }}%</span>
+            </div>
+            <p>{{ analytics.overall_assessment.summary }}</p>
+            <ul class="insights">
+                {% for insight in analytics.overall_assessment.insights %}
+                <li>{{ insight }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Score Distribution -->
+        {% if analytics.score_distribution %}
+        <div class="analytics-card">
+            <h3>📈 Score Distribution</h3>
+            <div class="dist-stats">
+                <div class="dist-stat"><span>Mean</span><strong>{{ (analytics.score_distribution.mean * 100)|round(1) }}%</strong></div>
+                <div class="dist-stat"><span>Median</span><strong>{{ (analytics.score_distribution.median * 100)|round(1) }}%</strong></div>
+                <div class="dist-stat"><span>Std Dev</span><strong>{{ (analytics.score_distribution.std_dev * 100)|round(1) }}%</strong></div>
+                <div class="dist-stat"><span>Range</span><strong>{{ (analytics.score_distribution.range * 100)|round(1) }}%</strong></div>
+            </div>
+            {% if analytics.score_distribution.brackets %}
+            <div class="brackets">
+                {% for bracket, count in analytics.score_distribution.brackets.items() %}
+                <div class="bracket">
+                    <span>{{ bracket }}</span>
+                    {% set percentage = (count / analytics.score_distribution.brackets.values()|sum * 100)|int if analytics.score_distribution.brackets.values()|sum > 0 else 0 %}
+                    <div class="bracket-bar" data-width="{{ percentage }}%">{{ count }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <p class="interpretation">{{ analytics.score_distribution.interpretation }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Ranking Distribution -->
+        {% if candidate_scores %}
+        <div class="analytics-card full-width highlight" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <h3 style="text-align: center; width: 100%;">📊 Top Candidates Match Share</h3>
+            <div style="width: 100%; max-width: 700px; padding: 1rem;">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Diversity -->
+        {% if analytics.diversity %}
+        <div class="analytics-card full-width">
+            <h3>🌈 Top-10 Diversity</h3>
+            <p>{{ analytics.diversity.interpretation }}</p>
+            <div class="skills-tags small">
+                {% for skill in analytics.diversity.top10_skill_list[:15] %}
+                <span class="skill-tag">{{ skill }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Chart.js Script for Rendering Pie Chart -->
+    {% if candidate_scores %}
+    <div id="chartDataPayload" data-counts="{{ candidate_scores | tojson | forceescape }}" style="display: none;"></div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Apply widths
+            document.querySelectorAll('.bracket-bar').forEach(bar => {
+                if (bar.dataset.width) bar.style.width = bar.dataset.width;
+            });
+
+            const payloadDiv = document.getElementById('chartDataPayload');
+            const rawData = JSON.parse(payloadDiv.dataset.counts);
+            const labels = Object.keys(rawData);
+            const dataCounts = Object.values(rawData);
+
+            // Generate vibrant teal/green colors inspired by the user reference image
+            const backgroundColors = [
+                '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981', 
+                '#3b82f6', '#34d399', '#2dd4bf', '#38bdf8', 
+                '#60a5fa', '#a7f3d0'
+            ];
+
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataCounts,
+                        backgroundColor: backgroundColors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        borderRadius: 4,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { 
+                            position: 'right',
+                            labels: {
+                                padding: 20,
+                                font: { size: 13, family: "'Inter', sans-serif" },
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return '  ' + context.raw + ' % Match Share';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <p>No analytics data available for this session.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

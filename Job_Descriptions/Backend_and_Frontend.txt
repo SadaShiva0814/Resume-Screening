@@ -1,0 +1,48 @@
+Role: Senior Backend Developer
+Category: Web Development
+Location: Remote / International
+
+### Job Summary:
+Seeking a high-caliber Senior Backend Developer to architect and manage the server-side logic of our enterprise e-commerce platforms. You will be responsible for designing and structuring complex database architectures (MySQL/MongoDB), implementing scalable RESTful APIs, and ensuring maximum uptime for mission-critical services.
+
+### Key Responsibilities:
+- Design and structure server-side logic for high-performance ecommerce websites (e.g., Menemarket uz style).
+- Build and deploy scalable backend infrastructures using Node.js, NestJS, and Express.js.
+- Optimize database performance for MongoDB and MySQL at the scale of millions of entries.
+- Lead the migration of legacy projects into modern microservices architectures.
+- Collaborate with frontend teams to provide seamless API integrations and data flow.
+- Successfully put complex web applications into production in fast-paced timelines.
+
+### Technical Skills:
+- Mastery of JavaScript/TypeScript and Node.js.
+- Backend Frameworks: NestJS, Next.js (API Routes), Ruby on Rails.
+- Databases: MongoDB, MySQL, Redis.
+- Documentation & Design: Figma, Git, and GitHub workflows.
+
+### Experience:
+- 5+ years of professional backend development experience.
+- Strong track record of taking complex web projects from design to production.
+---
+Role: Senior Frontend Developer
+Category: Web Development
+Location: Remote / Flexible
+
+### Job Summary:
+Looking for a Senior Frontend Developer with a deep focus on user experience and responsive design. You will be responsible for building highly immersive web interfaces using modern frameworks like React and Vue, specifically focusing on performance optimization across browsers.
+
+### Key Responsibilities:
+- Develop highly responsive and interactive user interfaces using React.js and Next.js.
+- Translate complex Figma designs into high-quality, maintainable code.
+- Optimize web performance, achieving significant reductions in page load times and core web vitals.
+- Lead the implementation of complex frontend features such as dynamic dashboards and e-commerce cart systems.
+- Mentor junior frontend developers and establish best practices for CSS management (Tailwind/Sass).
+
+### Technical Requirements:
+- Expert level HTML5, CSS3, and JavaScript (ES6+).
+- Proficiency in React.js, Redux, and modern state management.
+- Experience with Next.js and Server-Side Rendering (SSR).
+- Deep understanding of Responsive Web Design and cross-browser compatibility.
+
+### Educational Profile:
+- Bachelor’s in Computer Science or related design field.
+- Strong portfolio of live web applications with high user engagement metrics.
