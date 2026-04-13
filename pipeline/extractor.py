@@ -92,13 +92,7 @@ def _extract_pdf_smart(file_path):
     if len(text.strip()) >= 50:
         return _clean_text(text)
     
-    # Strategy 2: PyPDF2 fallback
-    text = _extract_pdf_pypdf2(file_path)
-    
-    if len(text.strip()) >= 50:
-        return _clean_text(text)
-    
-    # Strategy 3: OCR (image-based PDF)
+    # Strategy 2: OCR (image-based PDF)
     logger.info(f"Native extraction yielded <50 chars, using OCR for: {file_path}")
     text = _extract_pdf_ocr(file_path)
     return _clean_text(text)
@@ -116,22 +110,6 @@ def _extract_pdf_pymupdf(file_path):
         return '\n'.join(text_parts)
     except Exception as e:
         logger.error(f"PyMuPDF extraction failed for {file_path}: {e}")
-        return ""
-
-
-def _extract_pdf_pypdf2(file_path):
-    """Extract text using PyPDF2 — backup native parser."""
-    try:
-        from PyPDF2 import PdfReader
-        reader = PdfReader(file_path)
-        text_parts = []
-        for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text_parts.append(page_text)
-        return '\n'.join(text_parts)
-    except Exception as e:
-        logger.error(f"PyPDF2 extraction failed for {file_path}: {e}")
         return ""
 
 

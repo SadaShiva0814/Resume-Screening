@@ -16,7 +16,6 @@ import numpy as np
 import logging
 import re
 import random
-from scipy import stats as scipy_stats
 
 logger = logging.getLogger(__name__)
 
@@ -211,8 +210,15 @@ def _keyword_vs_semantic(candidates, resume_texts, job_description):
             keyword_ranks[idx] = kr['keyword_rank']
     
     # Compute Spearman's rank correlation
+    def spearmanr(x, y):
+        n = len(x)
+        if n == 0: return 0, 1
+        d_sq = sum((a - b)**2 for a, b in zip(x, y))
+        r = 1 - (6 * d_sq) / (n * (n**2 - 1))
+        return r, 0  # ignoring p_value calculation for simplicity
+        
     if len(semantic_ranks) >= 3:
-        correlation, p_value = scipy_stats.spearmanr(semantic_ranks, keyword_ranks)
+        correlation, p_value = spearmanr(semantic_ranks, keyword_ranks)
     else:
         correlation, p_value = 0, 1
     
