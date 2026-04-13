@@ -38,9 +38,18 @@ def upload_page():
     # Map to Title Case for UI if they are all lowercase
     ui_categories = []
     for cat in categories:
+        # Extra safety check to ensure cat is a string
+        if not isinstance(cat, str):
+            cat = str(cat)
+            
         if cat.lower() == 'general':
             continue # Already handled or want it at top
-        ui_categories.append(cat.title() if cat.islower() else cat)
+        
+        # Apply title case if it looks like a lowercase string
+        if cat.islower():
+            ui_categories.append(cat.title())
+        else:
+            ui_categories.append(cat)
     
     return render_template('upload.html', categories=ui_categories)
 

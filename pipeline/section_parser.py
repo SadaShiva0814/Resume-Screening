@@ -143,33 +143,11 @@ GITHUB_PATTERN = re.compile(r'(?:github\.com/|github:\s*)([a-zA-Z0-9_-]+)', re.I
 def parse_resume(text, html_header=None):
     """
     Parse a resume text into structured sections.
-    
-    Args:
-        text: Raw resume text
-        html_header: Optional header from HTML extraction (Kaggle dataset)
-    
-    Returns:
-    {
-        'contact': {
-            'name': str,
-            'email': str,
-            'phone': str,
-            'linkedin': str,
-            'github': str
-        },
-        'sections': {
-            'summary': str,
-            'skills': str,
-            'experience': str,
-            'education': str,
-            'projects': str,
-            ...
-        },
-        'extracted_skills': [str, ...],    # Individual skills detected
-        'years_of_experience': float,       # Estimated years
-        'education_level': str,             # PhD / Masters / Bachelors / etc.
-    }
     """
+    # Safety check for non-string input
+    if not isinstance(text, str):
+        text = str(text) if text is not None else ""
+        
     if not text or len(text.strip()) < 20:
         return _empty_result()
     
@@ -468,6 +446,9 @@ def _is_job_title(text):
 
 def _format_name(name):
     """Format a person's name to proper title case."""
+    if not name or not isinstance(name, str):
+        return str(name) if name is not None else ""
+        
     # Handle ALL CAPS
     if name.isupper():
         return name.title()
@@ -479,7 +460,7 @@ def _format_job_title_label(raw_label):
     
     E.g. 'HR ADMINISTRATOR/MARKETING ASSOCIATE' → 'HR Administrator'
     """
-    if not raw_label:
+    if not raw_label or not isinstance(raw_label, str):
         return 'Unnamed Candidate'
     
     # Take the primary title (before slash if present)

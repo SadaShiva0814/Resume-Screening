@@ -373,9 +373,12 @@ def get_all_categories():
     # Get from learned_preferences
     cats2 = db.learned_preferences.distinct('job_category')
     
-    # Combine and clean
-    all_cats = set([c.strip() for c in cats1 if c])
-    all_cats.update([c.strip() for c in cats2 if c])
+    # Combine and clean safely (handle potential non-string values)
+    all_cats = set()
+    for c in cats1 + cats2:
+        if c:
+            # Safely convert to string and strip
+            all_cats.add(str(c).strip())
     
     # Return sorted list
     return sorted(list(all_cats))
