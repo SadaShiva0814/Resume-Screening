@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block title %}Multi-Role Results — AI Resume Screening{% endblock %}
+
+{% block content %}
+<div class="results-container" style="max-width: 1200px; padding: 0 20px;">
+    <!-- Header -->
+    <div class="results-header" style="margin-bottom: 2rem;">
+        <div class="results-meta">
+            <h1>Multi-Role Results</h1>
+            <p>{{ ms.total_resumes }} resumes screened across {{ ms.total_roles }} roles</p>
+            <div class="results-actions" style="margin-top: 1rem;">
+                <a href="/upload" class="btn btn-outline">🔄 New Screening</a>
+                <a href="/history" class="btn btn-outline">📋 History</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overall Role Coverage / Success Rate Analytics -->
+    <div class="analytics-card highlight" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1.5rem; margin-bottom: 2rem; display: flex; flex-direction: column; align-items: center;">
+        <h3 style="margin-top: 0; margin-bottom: 1rem; width: 100%; text-align: center;">📊 Candidate Distribution by Role</h3>
+        <div style="width: 100%; max-width: 500px;">
+            <canvas id="roleDistributionChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Role Tabs -->
+    <div class="role-tabs" style="display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 2rem; flex-wrap: wrap;">
+        {% for role in roles %}
+        <button type="button" class="role-tab {% if loop.first %}active{% endif %}"
+                onclick="switchTab('{{ loop.index0 }}')" 
+                data-tab="{{ loop.index0 }}"
+                style="padding: 12px 24px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; font-family: inherit; flex: 1; min-width: 150px; text-align: center;
+                {% if loop.first %}background: var(--primary); color: white;{% else %}background: var(--bg-card); color: var(--text-secondary);{% endif %}">
+            {{ role.title }}
+            <span style="display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; 
+                {% if loop.first %}background: rgba(255,255,255,0.2);{% else %}background: var(--bg-input);{% endif %}">{{ role.candidate_count }}</span>
+        </button>
+        {% endfor %}
+        {% if versatile %}
+        <button type="button" class="role-tab"
+                onclick="switchTab('versatile')"
+                data-tab="versatile"
+                style="padding: 12px 24px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; font-family: inherit; flex: 1; min-width: 150px; text-align: center; background: var(--bg-card); color: var(--text-secondary);">
+            🔀 Versatile
+            <span style="display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; background: var(--bg-input);">{{ versatile|length }}</span>
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Role Panels -->
+    {% for role in roles %}
+    <div class="role-panel" id="panel-{{ loop.index0 }}" style="{% if not loop.first %}display: none;{% endif %}">
+        
+        <!-- JD Preview -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1.5rem;">
+            <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Job Description — {{ role.title }}</h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">{{ role.jd_preview }}{% if role.jd_preview|length >= 200 %}...{% endif %}</p>
+            <a href="/results/{{ role.session_id }}" class="btn btn-outline btn-sm" style="margin-top: 0.75rem;">View Full Results</a>
+            <a href="/analytics/{{ role.session_id }}" class="btn btn-outline btn-sm" style="margin-top: 0.75rem;">📊 Analytics</a>
+        </div>
+
+        {% if role.candidates %}
+        <!-- Candidate Table -->
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+            <div style="display: grid; grid-template-columns: 3fr 100px 100px; gap: 20px; padding: 12px 24px; font-weight: 600; font-size: 0.85rem; color: var(--text-muted); border-bottom: 2px solid var(--border); margin-bottom: 10px;">
+                <div>Candidate</div>
+                <div>Match</div>
+                <div>Experience</div>
+            </div>
+            {% for c in role.candidates %}
+            <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer;" onclick="toggleCandidateDetail(this)">
+                <div style="display: grid; grid-template-columns: 3fr 100px 100px; gap: 20px; padding: 16px 24px; align-items: center; font-size: 0.9rem; transition: background 0.2s;"
+                     onmouseover="this.style.background='var(--bg-card-hover)'" onmouseout="this.style.background=''">
+                    <!-- Name + Rank -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="rank-badge {% if c.rank == 1 %}gold{% elif c.rank == 2 %}silver{% elif c.rank == 3 %}bronze{% endif %}"
+                              style="width: 28px; height: 28px; font-size: 0.75rem; flex-shrink: 0; border-width: 1px;">
+                            #{{ c.rank }}
+                        </span>
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.95rem;">{{ c.candidate_name }}</div>
+                            {% if c.role %}<div style="color: var(--text-muted); font-size: 0.8rem;">{{ c.role }}</div>{% endif %}
+                        </div>
+                    </div>
+                    <!-- Score -->
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.8rem;">{{ (c.overall_score * 100)|round(0)|int }}%</div>
+                        <div style="height: 6px; width: 80px; background: var(--bg-input); border-radius: 3px; overflow: hidden; margin-top: 4px;">
+                            <div style="height: 100%; width: {{ (c.overall_score * 100)|int }}%; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 3px;"></div>
+                        </div>
+                    </div>
+                    <!-- Experience -->
+                    <div style="color: var(--text-secondary); font-size: 0.8rem;">
+                        {{ c.years_of_experience|int }} years
+                    </div>
+                </div>
+                <!-- Expandable Details -->
+                <div class="candidate-expand" style="display: none; padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg-input);">
+                    {% if c.extracted_skills %}
+                    <div style="margin-bottom: 12px;">
+                        <strong style="font-size: 0.85rem;">Skills:</strong>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">
+                            {{ c.extracted_skills[:8]|join(', ') }}{% if c.extracted_skills|length > 8 %} +{{ c.extracted_skills|length - 8 }} more{% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% if c.strengths %}
+                    <div style="margin-bottom: 8px;">
+                        <strong style="font-size: 0.85rem;">Strengths:</strong>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">{{ c.strengths[:2]|join(' • ') }}</span>
+                    </div>
+                    {% endif %}
+                    <a href="/candidate/{{ c._id }}" class="btn btn-outline btn-sm" style="margin-top: 8px;">Full Profile →</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+            <p style="font-size: 1.2rem; margin-bottom: 0.5rem;">No candidates matched this role</p>
+            <p style="font-size: 0.9rem;">All resumes were better suited for other roles.</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Versatile Panel -->
+    {% if versatile %}
+    <div class="role-panel" id="panel-versatile" style="display: none;">
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1.5rem;">
+            <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">🔀 Versatile Candidates</h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">These candidates scored well on multiple roles — they could fit into more than one position.</p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            {% for v in versatile %}
+            <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.95rem;">{{ v.candidate_name }}</div>
+                        <div style="color: var(--text-muted); font-size: 0.8rem;">Primary: {{ v.primary_role }} ({{ (v.primary_score * 100)|round(0)|int }}%)</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    {% for role_title, score in v.all_role_scores.items() %}
+                    <span style="padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; 
+                        {% if role_title == v.primary_role %}
+                            background: rgba(99,102,241,0.15); color: var(--primary); border: 1px solid rgba(99,102,241,0.3);
+                        {% else %}
+                            background: var(--bg-input); color: var(--text-secondary); border: 1px solid var(--border);
+                        {% endif %}">
+                        {{ role_title }}: {{ (score * 100)|round(0)|int }}%
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Injecting data securely so the IDE JS parser doesn't complain about Jinja tags -->
+{% set chart_data = [] %}
+{% for role in roles %}
+    {% set _ = chart_data.append({"name": role.title, "count": role.candidate_count}) %}
+{% endfor %}
+{% if ms.unmatched_count and ms.unmatched_count > 0 %}
+    {% set _ = chart_data.append({"name": "Unmatched", "count": ms.unmatched_count}) %}
+{% endif %}
+
+<div id="roleChartDataPayload" data-roles="{{ chart_data | tojson | forceescape }}" style="display: none;"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Collect data for the analytics chart
+    const payloadDiv = document.getElementById('roleChartDataPayload');
+    const chartData = JSON.parse(payloadDiv.dataset.roles);
+    
+    const labels = chartData.map(role => role.name);
+    const counts = chartData.map(role => role.count);
+
+    const backgroundColors = [
+        '#0ea5e9', '#10b981', '#14b8a6', '#06b6d4', 
+        '#3b82f6', '#34d399', '#2dd4bf', '#38bdf8',
+        '#64748b' // Gray for unmatched
+    ];
+
+    const ctx = document.getElementById('roleDistributionChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: counts,
+                backgroundColor: backgroundColors.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: '#ffffff',
+                borderRadius: 4,
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '65%',
+            plugins: {
+                legend: { 
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        font: { size: 13, family: "'Inter', sans-serif" },
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '  ' + context.raw + ' Candidates';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+
+function switchTab(tabId) {
+    // Hide all panels
+    document.querySelectorAll('.role-panel').forEach(p => p.style.display = 'none');
+    // Deactivate all tabs
+    document.querySelectorAll('.role-tab').forEach(t => {
+        t.style.background = 'var(--bg-card)';
+        t.style.color = 'var(--text-secondary)';
+        // Reset badge
+        const badge = t.querySelector('span');
+        if (badge) badge.style.background = 'var(--bg-input)';
+    });
+
+    // Show selected panel
+    const panel = document.getElementById('panel-' + tabId);
+    if (panel) panel.style.display = '';
+
+    // Activate selected tab
+    const tab = document.querySelector(`.role-tab[data-tab="${tabId}"]`);
+    if (tab) {
+        tab.style.background = 'var(--primary)';
+        tab.style.color = 'white';
+        const badge = tab.querySelector('span');
+        if (badge) badge.style.background = 'rgba(255,255,255,0.2)';
+    }
+}
+
+function toggleCandidateDetail(card) {
+    const detail = card.querySelector('.candidate-expand');
+    if (detail) {
+        detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+    }
+}
+</script>
+{% endblock %}

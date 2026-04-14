@@ -299,6 +299,143 @@ def screen_resumes_from_texts(resume_texts, job_description, weights=None, job_c
     return screen_resumes(resume_inputs, job_description, weights, job_category)
 
 
+def screen_resumes_multi_role(resume_inputs, job_descriptions, weights=None):
+    """
+    Multi-Role Matching — Screen resumes against multiple JDs simultaneously.
+    
+    Each resume is scored against every JD. Candidates are routed to the
+    role where they score highest. Candidates scoring well on 2+ roles
+    are flagged as "versatile".
+    
+    Args:
+        resume_inputs: List of resume dicts (same format as screen_resumes)
+        job_descriptions: List of dicts, each with:
+            - 'title': role name (e.g. "Backend Engineer")  
+            - 'text': full JD text
+            - 'category': job category for feedback learning (optional)
+        weights: dict (optional, shared section weights)
+    
+    Returns:
+        dict with:
+            - 'roles': {role_title: list of ranked candidate dicts}
+            - 'versatile': list of candidates appearing in 2+ roles
+            - 'unmatched': list of candidates below threshold on all roles
+            - 'role_meta': list of {title, category, candidate_count}
+    """
+    VERSATILE_THRESHOLD = 0.10   # Within 10% of best score → versatile
+    UNMATCHED_THRESHOLD = 0.30   # Below 30% on all roles → unmatched
+    
+    if not job_descriptions:
+        logger.warning("No job descriptions provided for multi-role screening")
+        return {'roles': {}, 'versatile': [], 'unmatched': [], 'role_meta': []}
+    
+    # ====== Step 1: Screen all resumes against each JD independently ======
+    role_results = {}   # {role_title: [ranked candidates]}
+    
+    for jd in job_descriptions:
+        title = jd['title']
+        text = jd['text']
+        category = jd.get('category', title.lower().replace(' ', '_'))
+        
+        logger.info(f"Multi-Role: Screening {len(resume_inputs)} resumes for '{title}'")
+        
+        candidates = screen_resumes(
+            resume_inputs=resume_inputs,
+            job_description=text,
+            weights=weights,
+            job_category=category
+        )
+        
+        role_results[title] = candidates
+    
+    # ====== Step 2: Build per-candidate score matrix ======
+    # Map: file_name → {role_title: score, ...}
+    candidate_scores = {}   # file_name → {role: score}
+    candidate_data = {}     # file_name → {role: full candidate dict}
+    
+    for role_title, candidates in role_results.items():
+        for c in candidates:
+            fname = c['file_name']
+            if fname not in candidate_scores:
+                candidate_scores[fname] = {}
+                candidate_data[fname] = {}
+            candidate_scores[fname][role_title] = c['overall_score']
+            candidate_data[fname][role_title] = c
+    
+    # ====== Step 3: Route candidates to best-fit role ======
+    routed = {title: [] for title in role_results}   # role → [candidates]
+    versatile = []
+    unmatched = []
+    assigned_to = {}   # file_name → best role title
+    
+    for fname, scores in candidate_scores.items():
+        if not scores:
+            continue
+        
+        best_role = max(scores, key=scores.get)
+        best_score = scores[best_role]
+        
+        # Check if unmatched (below threshold on ALL roles)
+        if best_score < UNMATCHED_THRESHOLD:
+            # Use the best-scoring version for the unmatched list
+            unmatched_candidate = candidate_data[fname][best_role].copy()
+            unmatched_candidate['best_role'] = best_role
+            unmatched_candidate['all_role_scores'] = {r: round(s, 4) for r, s in scores.items()}
+            unmatched.append(unmatched_candidate)
+            continue
+        
+        # Assign to best role
+        best_candidate = candidate_data[fname][best_role].copy()
+        best_candidate['all_role_scores'] = {r: round(s, 4) for r, s in scores.items()}
+        routed[best_role].append(best_candidate)
+        assigned_to[fname] = best_role
+        
+        # Check for versatility (scored close to best on other roles too)
+        other_strong_roles = []
+        for role, score in scores.items():
+            if role != best_role and (best_score - score) <= VERSATILE_THRESHOLD and score >= UNMATCHED_THRESHOLD:
+                other_strong_roles.append({'role': role, 'score': round(score, 4)})
+        
+        if other_strong_roles:
+            versatile.append({
+                'file_name': fname,
+                'candidate_name': best_candidate.get('candidate_name', fname),
+                'primary_role': best_role,
+                'primary_score': round(best_score, 4),
+                'other_roles': other_strong_roles,
+                'all_role_scores': {r: round(s, 4) for r, s in scores.items()},
+            })
+    
+    # ====== Step 4: Re-rank within each role ======
+    for role_title in routed:
+        role_candidates = routed[role_title]
+        role_candidates.sort(key=lambda c: c['overall_score'], reverse=True)
+        for rank, c in enumerate(role_candidates, 1):
+            c['rank'] = rank
+            c['percentile'] = round((1 - (rank - 1) / max(len(role_candidates), 1)) * 100, 1)
+    
+    # Build role metadata
+    role_meta = []
+    for jd in job_descriptions:
+        title = jd['title']
+        role_meta.append({
+            'title': title,
+            'category': jd.get('category', title.lower().replace(' ', '_')),
+            'candidate_count': len(routed.get(title, [])),
+        })
+    
+    logger.info(f"Multi-Role complete: {len(job_descriptions)} roles, "
+                f"{sum(len(v) for v in routed.values())} routed, "
+                f"{len(versatile)} versatile, {len(unmatched)} unmatched")
+    
+    return {
+        'roles': routed,
+        'versatile': versatile,
+        'unmatched': unmatched,
+        'role_meta': role_meta,
+    }
+
+
 def keyword_baseline_ranking(resume_texts_list, job_description):
     """
     Simple TF-IDF keyword-based ranking (baseline for comparison).

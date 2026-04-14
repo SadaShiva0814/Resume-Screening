@@ -16,6 +16,38 @@
         </div>
     </div>
 
+    <!-- Multi-Role Sessions -->
+    {% if multi_sessions %}
+    <div class="sessions-list" style="margin-bottom: 2rem;">
+        {% for ms in multi_sessions %}
+        <div class="session-card" style="display: flex; align-items: stretch; padding: 0;">
+            <div style="padding: 20px; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border-color);">
+                <input type="checkbox" class="session-checkbox multi-checkbox" value="{{ ms._id }}" data-type="multi" onchange="updateSelection()">
+            </div>
+            <div class="session-info" style="flex-grow: 1; padding: 20px;">
+                <h3>
+                    <span style="display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; background: rgba(99,102,241,0.15); color: var(--primary); margin-right: 8px; vertical-align: middle;">Multi-Role</span>
+                    {{ ms.total_roles }} Roles — {{ ms.total_resumes }} Resumes
+                </h3>
+                <p class="session-jd" style="color: var(--text-secondary); font-size: 0.85rem;">
+                    {% for role in ms.roles %}{{ role.title }} ({{ role.candidate_count }}){% if not loop.last %} · {% endif %}{% endfor %}
+                </p>
+                <div class="session-meta">
+                    <span class="session-status status-{{ ms.status }}">{{ ms.status|title }}</span>
+                    <span>{{ ms.created_at.strftime('%d %b %Y, %I:%M %p') if ms.created_at else 'N/A' }}</span>
+                    {% if ms.versatile_candidates %}<span style="color: var(--primary);">🔀 {{ ms.versatile_candidates|length }} versatile</span>{% endif %}
+                </div>
+            </div>
+            <div class="session-actions" style="padding: 20px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid var(--border-color); gap: 10px;">
+                <a href="/multi/results/{{ ms._id }}" class="btn btn-primary btn-sm">View Results</a>
+                <button type="button" onclick="deleteMultiSession('{{ ms._id }}', this)" class="btn btn-danger btn-sm" style="background-color:rgba(239, 68, 68, 0.1); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2);">Delete</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Single-Role Sessions -->
     {% if sessions %}
     <div class="sessions-list">
         {% for session in sessions %}
@@ -41,7 +73,9 @@
         </div>
         {% endfor %}
     </div>
-    {% else %}
+    {% endif %}
+
+    {% if not sessions and not multi_sessions %}
     <div class="empty-state">
         <span class="empty-icon">📋</span>
         <h3>No screening sessions yet</h3>
@@ -206,6 +240,55 @@
         } catch (error) {
             console.error('Error:', error);
             alert('Failed to delete the session. Please try again.');
+            btnElement.innerText = originalText;
+            btnElement.disabled = false;
+        }
+    }
+
+    async function deleteMultiSession(multiSessionId, btnElement) {
+        const originalText = btnElement.innerText;
+
+        if (!btnElement.dataset.confirmed) {
+            btnElement.dataset.confirmed = "true";
+            btnElement.innerText = 'Sure?';
+            btnElement.style.backgroundColor = '#fca5a5';
+            btnElement.style.borderColor = '#ef4444';
+            btnElement.style.color = '#7f1d1d';
+            
+            setTimeout(() => {
+                delete btnElement.dataset.confirmed;
+                btnElement.innerText = originalText;
+                btnElement.style.backgroundColor = '';
+                btnElement.style.borderColor = '';
+                btnElement.style.color = '';
+            }, 3000);
+            return;
+        }
+
+        btnElement.innerText = '...';
+        btnElement.disabled = true;
+
+        try {
+            const response = await fetch(`/api/multi/session/${multiSessionId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                const card = btnElement.closest('.session-card');
+                if (card) card.remove();
+                updateSelection();
+                if (document.querySelectorAll('.session-card').length === 0) {
+                    window.location.reload();
+                }
+            } else {
+                const data = await response.json();
+                alert(`Error: ${data.error || 'Unknown error'}`);
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to delete. Please try again.');
             btnElement.innerText = originalText;
             btnElement.disabled = false;
         }

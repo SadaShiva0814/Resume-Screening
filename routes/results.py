@@ -70,7 +70,10 @@ def candidate_page(candidate_id):
 def history_page():
     """Render screening history page."""
     sessions = get_all_sessions()
-    return render_template('history.html', sessions=sessions)
+    # Also fetch multi-role sessions
+    from database.db import get_all_multi_sessions
+    multi_sessions = get_all_multi_sessions()
+    return render_template('history.html', sessions=sessions, multi_sessions=multi_sessions)
 
 
 @results_bp.route('/api/history')

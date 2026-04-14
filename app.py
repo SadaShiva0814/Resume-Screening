@@ -35,11 +35,13 @@ def create_app():
     from routes.results import results_bp
     from routes.feedback import feedback_bp
     from routes.analytics import analytics_bp
+    from routes.multirole import multirole_bp
     
     app.register_blueprint(screening_bp)
     app.register_blueprint(results_bp)
     app.register_blueprint(feedback_bp)
     app.register_blueprint(analytics_bp)
+    app.register_blueprint(multirole_bp)
     
     # Template context processors
     @app.context_processor

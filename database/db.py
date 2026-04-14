@@ -401,3 +401,68 @@ def get_analytics(session_id):
     if analytics:
         analytics['_id'] = str(analytics['_id'])
     return analytics
+
+
+# ===================== Multi-Role Session Operations =====================
+
+def create_multi_session(roles_data, total_resumes):
+    """Create a parent multi-role session.
+    
+    Args:
+        roles_data: list of dicts with keys: title, category, session_id, candidate_count
+        total_resumes: total number of unique resumes screened
+    
+    Returns:
+        str: the multi-session ID
+    """
+    db = get_db()
+    multi_session = {
+        'type': 'multi_role',
+        'roles': roles_data,
+        'total_resumes': total_resumes,
+        'total_roles': len(roles_data),
+        'status': 'completed',
+        'created_at': datetime.utcnow(),
+    }
+    result = db.multi_sessions.insert_one(multi_session)
+    return str(result.inserted_id)
+
+
+def get_multi_session(multi_session_id):
+    """Get a multi-role session with all its role metadata."""
+    from bson import ObjectId
+    db = get_db()
+    ms = db.multi_sessions.find_one({'_id': ObjectId(multi_session_id)})
+    if ms:
+        ms['_id'] = str(ms['_id'])
+    return ms
+
+
+def get_all_multi_sessions():
+    """Get all multi-role sessions, most recent first."""
+    db = get_db()
+    sessions = list(db.multi_sessions.find().sort('created_at', DESCENDING))
+    for s in sessions:
+        s['_id'] = str(s['_id'])
+    return sessions
+
+
+def delete_multi_session(multi_session_id):
+    """Delete a multi-role session and all its child sessions."""
+    from bson import ObjectId
+    db = get_db()
+    
+    ms = get_multi_session(multi_session_id)
+    if not ms:
+        return False
+    
+    # Delete all child sessions
+    for role in ms.get('roles', []):
+        child_id = role.get('session_id')
+        if child_id:
+            delete_session(child_id)
+    
+    # Delete the parent multi-session
+    result = db.multi_sessions.delete_one({'_id': ObjectId(multi_session_id)})
+    return result.deleted_count > 0
+

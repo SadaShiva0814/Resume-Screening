@@ -6,27 +6,52 @@
     <h1>Screen Resumes</h1>
     <p class="upload-subtitle">Upload candidate resumes and paste the job description to begin AI-powered screening.</p>
 
+    <!-- Mode Toggle -->
+    <div class="mode-toggle" style="display: flex; gap: 0; margin-bottom: 2rem; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; width: fit-content;">
+        <button type="button" class="mode-btn active" id="mode-single" onclick="setMode('single')" style="padding: 10px 24px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; background: var(--primary); color: white; font-family: inherit;">
+            Single Role
+        </button>
+        <button type="button" class="mode-btn" id="mode-multi" onclick="setMode('multi')" style="padding: 10px 24px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; background: var(--bg-card); color: var(--text-secondary); font-family: inherit;">
+            Multi-Role
+        </button>
+    </div>
+
     <form id="screening-form" enctype="multipart/form-data">
-        <div class="form-grid">
-            <!-- Left: Job Description -->
+        <div class="form-grid" style="align-items: stretch;">
+            <!-- Left: Job Description(s) -->
             <div class="form-section" style="display: flex; flex-direction: column; height: 100%;">
-                <h3>📝 Job Description</h3>
-                <textarea id="job-description" name="job_description" style="flex: 1; min-height: 150px; margin-bottom: 1rem;"
-                    placeholder="Paste the full job description here..."
-                    required></textarea>
-                
-                <div class="form-row" style="margin-top: auto;">
-                    <div class="form-group">
-                        <label for="job-category">Job Category</label>
-                        <input type="text" id="job-category" name="job_category" class="form-control" placeholder="e.g. Data Science" value="General" autocomplete="off">
+
+                <!-- Single Role Mode -->
+                <div id="single-jd-section" style="display: flex; flex-direction: column; flex-grow: 1;">
+                    <h3 style="margin-top: 0;">📝 Job Description</h3>
+                    <textarea id="job-description" name="job_description" style="flex: 1; min-height: 150px; margin-bottom: 1rem;"
+                        placeholder="Paste the full job description here..."
+                        ></textarea>
+                    
+                    <div class="form-row" style="margin-top: auto;">
+                        <div class="form-group">
+                            <label for="job-category">Job Category</label>
+                            <input type="text" id="job-category" name="job_category" class="form-control" placeholder="e.g. Data Science" value="General" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multi-Role Mode (hidden by default) -->
+                <div id="multi-jd-section" style="display: none; flex-direction: column; flex-grow: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin-top: 0; margin-bottom: 0;">📝 Job Descriptions</h3>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="addRole()">+ Add Role</button>
+                    </div>
+                    <div id="roles-container" style="overflow-y: auto; max-height: 400px; padding-right: 10px;">
+                        <!-- Role entries will be added here dynamically -->
                     </div>
                 </div>
             </div>
 
             <!-- Right: File Upload -->
             <div class="form-section" style="display: flex; flex-direction: column; height: 100%;">
-                <h3>📄 Resume Files</h3>
-                <div class="drop-zone" id="drop-zone">
+                <h3 style="margin-top: 0;">📄 Resume Files</h3>
+                <div class="drop-zone" id="drop-zone" style="flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 200px;">
                     <div class="drop-zone-content">
                         <span class="drop-icon">📁</span>
                         <p>Drag & drop resume files here</p>
@@ -36,7 +61,7 @@
                     <input type="file" id="file-input" name="files[]" multiple
                         accept=".pdf,.docx,.doc,.txt" style="display:none">
                 </div>
-                <div id="file-list" class="file-list"></div>
+                <div id="file-list" class="file-list" style="max-height: 150px; overflow-y: auto;"></div>
                 <p class="file-count" id="file-count">0 files selected</p>
 
                 <!-- Section Weights (Collapsible) -->
@@ -74,7 +99,7 @@
     <div class="progress-overlay" id="progress-overlay" style="display:none">
         <div class="progress-card">
             <div class="spinner"></div>
-            <h3>Processing Resumes...</h3>
+            <h3 id="progress-title">Processing Resumes...</h3>
             <p id="progress-text">Extracting text and analyzing with AI...</p>
             <p class="progress-sub">This may take a moment for large batches</p>
         </div>
@@ -94,6 +119,63 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submit-btn');
 
     let selectedFiles = [];
+    let currentMode = 'single';
+
+    // ===== Define mode/role functions FIRST (before calling them) =====
+
+    // Mode toggle
+    window.setMode = function(mode) {
+        currentMode = mode;
+        const singleBtn = document.getElementById('mode-single');
+        const multiBtn = document.getElementById('mode-multi');
+        const singleSection = document.getElementById('single-jd-section');
+        const multiSection = document.getElementById('multi-jd-section');
+
+        if (mode === 'single') {
+            singleBtn.style.background = 'var(--primary)';
+            singleBtn.style.color = 'white';
+            multiBtn.style.background = 'var(--bg-card)';
+            multiBtn.style.color = 'var(--text-secondary)';
+            singleSection.style.display = 'flex';
+            multiSection.style.display = 'none';
+        } else {
+            multiBtn.style.background = 'var(--primary)';
+            multiBtn.style.color = 'white';
+            singleBtn.style.background = 'var(--bg-card)';
+            singleBtn.style.color = 'var(--text-secondary)';
+            singleSection.style.display = 'none';
+            multiSection.style.display = 'flex';
+        }
+    };
+
+    // Add role entry for multi-mode
+    window.addRole = function() {
+        const container = document.getElementById('roles-container');
+        const index = container.children.length + 1;
+        const entry = document.createElement('div');
+        entry.className = 'role-entry';
+        entry.style.cssText = 'border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1rem; position: relative;';
+        entry.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <label style="font-weight: 600; font-size: 0.9rem;">Role ${index}</label>
+                ${index > 2 ? '<button type="button" class="file-remove" onclick="this.closest(\'.role-entry\').remove(); reindexRoles();" style="font-size: 1rem;">✕</button>' : ''}
+            </div>
+            <input type="text" class="form-control role-title" placeholder="Role title (e.g. Backend Engineer)" style="margin-bottom: 0.5rem;">
+            <textarea class="role-description" placeholder="Paste the job description for this role..." style="width: 100%; min-height: 80px; padding: 0.75rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: inherit; font-size: 0.85rem; resize: vertical;"></textarea>
+        `;
+        container.appendChild(entry);
+    };
+
+    window.reindexRoles = function() {
+        const entries = document.querySelectorAll('.role-entry');
+        entries.forEach((entry, i) => {
+            entry.querySelector('label').textContent = `Role ${i + 1}`;
+        });
+    };
+
+    // Initialize with 2 role entries for multi-mode
+    addRole();
+    addRole();
 
     // Drop zone handling
     dropZone.addEventListener('click', () => fileInput.click());
@@ -155,18 +237,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // (setMode, addRole, reindexRoles defined above)
+
     // Form submission
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        const jd = document.getElementById('job-description').value.trim();
-        if (!jd) { alert('Please enter a job description'); return; }
         if (selectedFiles.length === 0) { alert('Please upload at least one resume'); return; }
 
-        // Build form data
         const formData = new FormData();
-        formData.append('job_description', jd);
-        formData.append('job_category', document.getElementById('job-category').value);
 
         // Add weights
         const weights = {};
@@ -178,12 +257,51 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add files
         selectedFiles.forEach(f => formData.append('files[]', f));
 
+        let endpoint;
+
+        if (currentMode === 'single') {
+            // Single-role mode
+            const jd = document.getElementById('job-description').value.trim();
+            if (!jd) { alert('Please enter a job description'); return; }
+
+            formData.append('job_description', jd);
+            formData.append('job_category', document.getElementById('job-category').value);
+            endpoint = '/api/screen';
+        } else {
+            // Multi-role mode
+            const roleEntries = document.querySelectorAll('.role-entry');
+            const roles = [];
+            let valid = true;
+
+            roleEntries.forEach((entry, i) => {
+                const title = entry.querySelector('.role-title').value.trim();
+                const desc = entry.querySelector('.role-description').value.trim();
+                if (!title) { alert(`Role ${i+1} is missing a title`); valid = false; }
+                if (!desc) { alert(`Role ${i+1} is missing a job description`); valid = false; }
+                roles.push({ title, description: desc });
+            });
+
+            if (!valid) return;
+            if (roles.length < 2) { alert('Multi-role mode requires at least 2 roles'); return; }
+
+            formData.append('roles', JSON.stringify(roles));
+            endpoint = '/api/screen/multi';
+        }
+
         // Show progress
         progressOverlay.style.display = 'flex';
         submitBtn.disabled = true;
+        
+        if (currentMode === 'multi') {
+            document.getElementById('progress-title').textContent = 'Multi-Role Screening...';
+            document.getElementById('progress-text').textContent = 'Scoring resumes against all roles — this takes longer than single-role...';
+        } else {
+            document.getElementById('progress-title').textContent = 'Processing Resumes...';
+            document.getElementById('progress-text').textContent = 'Extracting text and analyzing with AI...';
+        }
 
         try {
-            const response = await fetch('/api/screen', {
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData
             });
