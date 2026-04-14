@@ -167,6 +167,13 @@ def screen_multi_role():
             }}
         )
         
+        # Link child sessions back to the parent multi-session for UI navigation
+        for rd in roles_data:
+            db.sessions.update_one(
+                {'_id': ObjectId(rd['session_id'])},
+                {'$set': {'multi_session_id': str(multi_session_id)}}
+            )
+        
         total_routed = sum(r['candidate_count'] for r in roles_data)
         logger.info(f"Multi-role session {multi_session_id} complete: "
                     f"{total_routed} routed across {len(roles_data)} roles")
@@ -209,11 +216,25 @@ def multi_results_page(multi_session_id):
             'jd_preview': session['job_description'][:200] if session else '',
         })
     
+    # Enrich versatile candidates with DB IDs and status
+    versatile_enriched = ms.get('versatile_candidates', [])
+    for v in versatile_enriched:
+        primary = v.get('primary_role')
+        for r in roles_with_candidates:
+            if r['title'] == primary:
+                for c in r['candidates']:
+                    if c.get('file_name') == v.get('file_name'):
+                        v['_id'] = c['_id']
+                        v['session_id'] = r['session_id']
+                        v['feedback_status'] = c.get('feedback_status')
+                        break
+                break
+    
     return render_template(
         'multi_results.html',
         ms=ms,
         roles=roles_with_candidates,
-        versatile=ms.get('versatile_candidates', []),
+        versatile=versatile_enriched,
     )
 
 

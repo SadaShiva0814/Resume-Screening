@@ -16,6 +16,14 @@ def analytics_page(session_id):
     session = get_session(session_id)
     if not session:
         return render_template('error.html', message='Session not found'), 404
+        
+    # Retroactive lookup for older multi-sessions that lack the linked ID
+    if not session.get('multi_session_id'):
+        from database.db import get_db
+        db = get_db()
+        parent = db.multi_sessions.find_one({'roles.session_id': session_id})
+        if parent:
+            session['multi_session_id'] = str(parent['_id'])
     
     analytics = get_analytics(session_id)
     candidates = get_candidates(session_id)

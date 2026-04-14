@@ -8,6 +8,9 @@
             <h1>Screening Results</h1>
             <p>{{ candidates|length }} candidates ranked by semantic relevance</p>
             <div class="results-actions">
+                {% if session.multi_session_id %}
+                <a href="/multi/results/{{ session.multi_session_id }}" class="btn btn-outline">← Back to Multi-Role</a>
+                {% endif %}
                 <a href="/analytics/{{ session._id }}" class="btn btn-outline">📊 Analytics</a>
                 <a href="/upload" class="btn btn-outline">🔄 New Screening</a>
             </div>

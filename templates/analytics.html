@@ -3,7 +3,11 @@
 
 {% block content %}
 <div class="analytics-container">
+    {% if session.multi_session_id %}
+    <a href="/multi/results/{{ session.multi_session_id }}" class="back-link">← Back to Multi-Role Results</a>
+    {% else %}
     <a href="/results/{{ session._id }}" class="back-link">← Back to Results</a>
+    {% endif %}
     <h1>📊 Screening Analytics</h1>
 
     {% if analytics %}
