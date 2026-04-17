@@ -19,7 +19,7 @@ from pipeline.ontology import SKILL_ONTOLOGY, standardize_skill
 
 logger = logging.getLogger(__name__)
 
-def compute_section_scores(parsed_resume, jd_embedding, jd_text=""):
+def compute_section_scores(parsed_resume, jd_embedding, jd_text="", cached_full_embedding=None):
     """
     Compute semantic similarity between each resume section and the JD.
     Uses "Signal Isolation" (Max Paragraph Similarity) to prevent 
@@ -91,8 +91,11 @@ def compute_section_scores(parsed_resume, jd_embedding, jd_text=""):
         section_scores[section_name] = max(0.0, min(1.3, score)) 
     
     # Full resume embedding remains as baseline
-    full_text = ' '.join(text for text in sections.values() if text.strip())
-    full_embedding = encode_text(full_text)
+    if cached_full_embedding is not None:
+        full_embedding = np.array(cached_full_embedding) if isinstance(cached_full_embedding, list) else cached_full_embedding
+    else:
+        full_text = ' '.join(text for text in sections.values() if text.strip())
+        full_embedding = encode_text(full_text)
     
     return {
         'section_scores': section_scores,

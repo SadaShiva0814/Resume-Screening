@@ -1,0 +1,27 @@
+### 6.4 Comprehensive Test Case Suite
+
+The following table outlines the systematic testing of the AI Resume Screening System. These tests ensure the reliability of the NLP pipeline, the accuracy of semantic matching, and the stability of the multi-database architecture.
+
+#### I. Unit & Logic Testing (Core Algorithms)
+| Test ID | Module | Scenario | Expected Behavior |
+| :--- | :--- | :--- | :--- |
+| UT-01 | ontology.py | Skill Standardization | "JS" and "Javascript" should both map to a single "java_script" ID. |
+| UT-02 | section_parser.py | Empty Section Handling | System should not crash if a resume is missing a "Skills" or "Work History" block. |
+| UT-03 | extactor.py | Corrupted PDF Detection | System should catch extraction errors and return a clean "Insufficient Text" warning. |
+| UT-04 | semantic_scorer.py | Weight Normalization | If user weights sum to >100, the system must proportionally scale them to 1.0. |
+
+#### II. Integration Testing (Pipeline Flow)
+| Test ID | Scenario | Input | Expected Logic Trigger |
+| :--- | :--- | :--- | :--- |
+| IT-01 | Anchor Guard Penalty | JD: "Java Developer" + Resume: "Python Expert" | Trigger 40% Anchor Penalty for missing the core technical stack requirement. |
+| IT-02 | Seniority Guard | JD: "Senior (5+ yrs)" + Resume: "Intern (0 yrs)" | Trigger 60% Seniority Penalty due to critical experience gap. |
+| IT-03 | Signal Isolation | 10MB Resume with noise. | Max-match logic should isolate valid skills without score dilution from long text. |
+| IT-04 | Learned Bias | Feedback applied to "Java". | Future "Java" screenings should show a performance boost based on user preference. |
+
+#### III. System & Performance Testing (End-to-End)
+| Test ID | Category | Requirement | Measured Result |
+| :--- | :--- | :--- | :--- |
+| ST-01 | Scalability | Screen 500 resumes at once. | Processing time remains <2 seconds per resume on average. |
+| ST-02 | FAISS Search | Semantic Retrieval. | Sub-50ms retrieval time for historical searches via vector store. |
+| ST-03 | Reliability | Database connection loss. | System should implement a "Lite Mode" or grace period for session storage. |
+| ST-04 | Multi-Role Routing | One-to-Many Screening. | Candidates are accurately routed to the role where their SBERT score is highest. |

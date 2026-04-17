@@ -27,7 +27,7 @@ from pipeline.semantic_scorer import compute_section_scores, compute_weighted_sc
 logger = logging.getLogger(__name__)
 
 
-def screen_resumes(resume_inputs, job_description, weights=None, job_category='general'):
+def screen_resumes(resume_inputs, job_description, weights=None, job_category='general', progress_callback=None):
     """
     Main screening function — ranks all resumes against a job description.
     
@@ -90,44 +90,58 @@ def screen_resumes(resume_inputs, job_description, weights=None, job_category='g
                 logger.warning(f"Skipping resume {i+1}: insufficient text extracted")
                 continue
             
-            # Parse sections — prefer HTML-based extraction for Kaggle data
-            html_content = resume_input.get('html', '')
-            html_header = None  # Will hold job title/name from HTML
+            import hashlib
+            file_hash = hashlib.sha256(raw_text.encode('utf-8', errors='ignore')).hexdigest()
+            from database.db import get_cached_resume, cache_resume
+            cached_doc = get_cached_resume(file_hash)
             
-            if html_content and len(html_content) > 100:
-                # Use structured HTML for section extraction (much more accurate)
-                from pipeline.extractor import extract_sections_from_html
-                html_sections = extract_sections_from_html(html_content)
-                
-                # Extract the header (name/job title) from HTML sections
-                html_header = html_sections.pop('header', None)
-                
-                if html_sections and sum(1 for v in html_sections.values() if v.strip()) >= 2:
-                    # Good HTML extraction — use these sections
-                    parsed = parse_resume(raw_text, html_header=html_header)
-                    # Override sections with HTML-extracted ones (better structure)
-                    for section_name, section_text in html_sections.items():
-                        if section_text.strip():
-                            parsed['sections'][section_name] = section_text
-                    # Re-extract skills from the now-better skills section
-                    from pipeline.section_parser import _extract_skills, _get_nlp, _format_section_text
-                    parsed['extracted_skills'] = _extract_skills(
-                        parsed['sections'].get('skills', ''),
-                        raw_text, _get_nlp()
-                    )
-                    # Rebuild display_sections after overriding
-                    for section_name, section_text in parsed['sections'].items():
-                        if section_text and section_text.strip():
-                            parsed['display_sections'][section_name] = _format_section_text(section_text, section_name)
-                else:
-                    parsed = parse_resume(raw_text, html_header=html_header)
+            if cached_doc:
+                logger.info(f"Cache hit for '{resume_input.get('file_name', 'unknown')}' — skipping parsing")
+                parsed = cached_doc['parsed']
+                cached_full_embedding = cached_doc.get('full_embedding')
             else:
-                parsed = parse_resume(raw_text)
+                cached_full_embedding = None
+                # Parse sections — prefer HTML-based extraction for Kaggle data
+                html_content = resume_input.get('html', '')
+                html_header = None  # Will hold job title/name from HTML
+                
+                if html_content and len(html_content) > 100:
+                    # Use structured HTML for section extraction (much more accurate)
+                    from pipeline.extractor import extract_sections_from_html
+                    html_sections = extract_sections_from_html(html_content)
+                    
+                    # Extract the header (name/job title) from HTML sections
+                    html_header = html_sections.pop('header', None)
+                    
+                    if html_sections and sum(1 for v in html_sections.values() if v.strip()) >= 2:
+                        # Good HTML extraction — use these sections
+                        parsed = parse_resume(raw_text, html_header=html_header)
+                        # Override sections with HTML-extracted ones (better structure)
+                        for section_name, section_text in html_sections.items():
+                            if section_text.strip():
+                                parsed['sections'][section_name] = section_text
+                        # Re-extract skills from the now-better skills section
+                        from pipeline.section_parser import _extract_skills, _get_nlp, _format_section_text
+                        parsed['extracted_skills'] = _extract_skills(
+                            parsed['sections'].get('skills', ''),
+                            raw_text, _get_nlp()
+                        )
+                        # Rebuild display_sections after overriding
+                        for section_name, section_text in parsed['sections'].items():
+                            if section_text and section_text.strip():
+                                parsed['display_sections'][section_name] = _format_section_text(section_text, section_name)
+                    else:
+                        parsed = parse_resume(raw_text, html_header=html_header)
+                else:
+                    parsed = parse_resume(raw_text)
             
             # Compute section-wise semantic scores
-            scoring = compute_section_scores(parsed, jd_embedding, job_description)
+            scoring = compute_section_scores(parsed, jd_embedding, job_description, cached_full_embedding)
             section_scores = scoring['section_scores']
             full_embedding = scoring['full_embedding']
+            
+            if not cached_doc:
+                cache_resume(file_hash, parsed, full_embedding.tolist() if hasattr(full_embedding, 'tolist') else full_embedding, raw_text)
             
             # Compute weighted score
             jd_score = compute_weighted_score(section_scores, weights)
@@ -238,8 +252,14 @@ def screen_resumes(resume_inputs, job_description, weights=None, job_category='g
             
             candidates.append(candidate)
             
+            # Report progress to caller
+            if progress_callback:
+                progress_callback(i + 1, total)
+            
         except Exception as e:
             logger.error(f"Error processing resume {i+1}: {e}", exc_info=True)
+            if progress_callback:
+                progress_callback(i + 1, total)
             continue
     
     if not candidates:
@@ -299,7 +319,7 @@ def screen_resumes_from_texts(resume_texts, job_description, weights=None, job_c
     return screen_resumes(resume_inputs, job_description, weights, job_category)
 
 
-def screen_resumes_multi_role(resume_inputs, job_descriptions, weights=None):
+def screen_resumes_multi_role(resume_inputs, job_descriptions, weights=None, progress_callback=None):
     """
     Multi-Role Matching — Screen resumes against multiple JDs simultaneously.
     
@@ -323,7 +343,7 @@ def screen_resumes_multi_role(resume_inputs, job_descriptions, weights=None):
             - 'role_meta': list of {title, category, candidate_count}
     """
     VERSATILE_THRESHOLD = 0.10   # Within 10% of best score → versatile
-    UNMATCHED_THRESHOLD = 0.30   # Below 30% on all roles → unmatched
+    UNMATCHED_THRESHOLD = 0.05   # Nearly all candidates get routed (matches single-role behavior)
     
     if not job_descriptions:
         logger.warning("No job descriptions provided for multi-role screening")
@@ -332,18 +352,27 @@ def screen_resumes_multi_role(resume_inputs, job_descriptions, weights=None):
     # ====== Step 1: Screen all resumes against each JD independently ======
     role_results = {}   # {role_title: [ranked candidates]}
     
-    for jd in job_descriptions:
+    total_work = len(resume_inputs) * len(job_descriptions)
+    completed_work = 0
+    
+    for jd_idx, jd in enumerate(job_descriptions):
         title = jd['title']
         text = jd['text']
         category = jd.get('category', title.lower().replace(' ', '_'))
         
         logger.info(f"Multi-Role: Screening {len(resume_inputs)} resumes for '{title}'")
         
+        def _multi_progress(done, total, _jd_idx=jd_idx):
+            if progress_callback:
+                overall = (_jd_idx * len(resume_inputs)) + done
+                progress_callback(overall, total_work)
+        
         candidates = screen_resumes(
             resume_inputs=resume_inputs,
             job_description=text,
             weights=weights,
-            job_category=category
+            job_category=category,
+            progress_callback=_multi_progress
         )
         
         role_results[title] = candidates

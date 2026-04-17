@@ -57,7 +57,7 @@ def upload_page():
 @screening_bp.route('/api/screen', methods=['POST'])
 def screen():
     """
-    Main screening endpoint.
+    Main screening endpoint — now async with background threading.
     
     Accepts multipart form data with:
     - files[]: Resume files (PDF, DOCX, TXT)
@@ -66,10 +66,8 @@ def screen():
     - weights: Optional JSON of section weights
     """
     import json
-    from pipeline.ranker import screen_resumes
-    from pipeline.evaluator import compute_all_metrics
-    from database.db import (create_session, save_candidates,
-                              update_session_status, save_analytics)
+    import threading
+    from database.db import (create_session, update_session_status)
     
     # Validate inputs
     job_description = request.form.get('job_description', '').strip()
@@ -108,7 +106,6 @@ def screen():
     for f in files:
         if f and f.filename and _allowed_file(f.filename):
             filename = secure_filename(f.filename)
-            # Add UUID to avoid filename conflicts
             unique_name = f"{uuid.uuid4().hex[:8]}_{filename}"
             file_path = os.path.join(session_upload_dir, unique_name)
             f.save(file_path)
@@ -122,45 +119,104 @@ def screen():
         update_session_status(session_id, 'failed')
         return jsonify({'error': 'No valid resume files uploaded'}), 400
     
-    try:
-        # Run the screening pipeline
-        logger.info(f"Starting screening session {session_id} with {len(resume_inputs)} resumes")
-        candidates = screen_resumes(
-            resume_inputs=resume_inputs,
-            job_description=job_description,
-            weights=weights,
-            job_category=job_category
-        )
-        
-        if not candidates:
-            update_session_status(session_id, 'failed')
-            return jsonify({'error': 'No candidates could be processed'}), 500
-        
-        # Save results
-        save_candidates(session_id, candidates)
-        update_session_status(session_id, 'completed', num_resumes=len(candidates))
-        
-        # Compute evaluation metrics
-        try:
-            resume_texts = [c.get('raw_text', '') for c in candidates]
-            metrics = compute_all_metrics(candidates, job_description, resume_texts)
-            save_analytics(session_id, metrics)
-        except Exception as e:
-            logger.warning(f"Could not compute metrics: {e}")
-        
-        logger.info(f"Session {session_id} complete: {len(candidates)} candidates ranked")
-        
-        return jsonify({
-            'success': True,
-            'session_id': session_id,
-            'candidates_processed': len(candidates),
-            'redirect': f'/results/{session_id}'
-        })
-        
-    except Exception as e:
-        logger.error(f"Screening failed for session {session_id}: {e}", exc_info=True)
-        update_session_status(session_id, 'failed')
-        return jsonify({'error': f'Screening failed: {str(e)}'}), 500
+    # Launch background thread for the heavy AI pipeline
+    def _run_pipeline(app, sid, inputs, jd, w, cat):
+        with app.app_context():
+            from pipeline.ranker import screen_resumes
+            from pipeline.evaluator import compute_all_metrics
+            from database.db import (save_candidates, update_session_status,
+                                      save_analytics, update_session_progress)
+            try:
+                def on_progress(done, total):
+                    update_session_progress(sid, done)
+                
+                candidates = screen_resumes(
+                    resume_inputs=inputs,
+                    job_description=jd,
+                    weights=w,
+                    job_category=cat,
+                    progress_callback=on_progress
+                )
+                
+                if not candidates:
+                    update_session_status(sid, 'failed')
+                    return
+                
+                save_candidates(sid, candidates)
+                update_session_status(sid, 'completed', num_resumes=len(candidates))
+                
+                try:
+                    resume_texts = [c.get('raw_text', '') for c in candidates]
+                    metrics = compute_all_metrics(candidates, jd, resume_texts)
+                    save_analytics(sid, metrics)
+                except Exception as e:
+                    logger.warning(f"Could not compute metrics: {e}")
+                
+                logger.info(f"Session {sid} complete: {len(candidates)} candidates ranked")
+                
+            except Exception as e:
+                logger.error(f"Screening failed for session {sid}: {e}", exc_info=True)
+                update_session_status(sid, 'failed')
+    
+    from flask import current_app
+    app = current_app._get_current_object()
+    t = threading.Thread(target=_run_pipeline, args=(app, session_id, resume_inputs, job_description, weights, job_category))
+    t.daemon = True
+    t.start()
+    
+    logger.info(f"Session {session_id} launched in background with {len(resume_inputs)} resumes")
+    
+    return jsonify({
+        'success': True,
+        'session_id': session_id,
+        'redirect': f'/status/{session_id}'
+    })
+
+
+@screening_bp.route('/status/<session_id>')
+def status_page(session_id):
+    """Render the live progress page for a session."""
+    from database.db import get_session
+    session = get_session(session_id)
+    if not session:
+        return render_template('error.html', message='Session not found'), 404
+    # If already completed, skip status page entirely
+    if session.get('status') == 'completed':
+        # Check for custom redirect (multi-role tracker sessions)
+        if session.get('redirect_url'):
+            return redirect(session['redirect_url'])
+        # Check if this is a multi-role child
+        if session.get('multi_session_id'):
+            return redirect(f"/multi/results/{session['multi_session_id']}")
+        return redirect(f"/results/{session_id}")
+    return render_template('status.html', session=session)
+
+
+@screening_bp.route('/api/status/<session_id>')
+def api_status(session_id):
+    """API: Get live progress for a screening session."""
+    from database.db import get_session
+    session = get_session(session_id)
+    if not session:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    status = session.get('status', 'processing')
+    processed = session.get('processed_count', 0)
+    total = session.get('num_resumes', 0)
+    
+    result = {
+        'status': status,
+        'processed_count': processed,
+        'total_resumes': total,
+        'progress_pct': round((processed / total) * 100) if total > 0 else 0
+    }
+    
+    if status == 'completed':
+        result['redirect'] = session.get('redirect_url', f'/results/{session_id}')
+    elif status == 'failed':
+        result['error'] = 'Screening pipeline failed. Check server logs.'
+    
+    return jsonify(result)
 
 
 @screening_bp.route('/api/screen/dataset', methods=['POST'])

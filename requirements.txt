@@ -24,6 +24,7 @@ spacy==3.8.11
 scikit-learn==1.6.1
 numpy==2.0.2
 scipy==1.13.1
+faiss-cpu==1.9.0.post1
 
 # --- Data Processing ---
 pandas==2.3.3

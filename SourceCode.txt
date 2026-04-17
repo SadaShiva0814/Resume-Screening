@@ -1,0 +1,260 @@
+6.5 Essential Project Functions (Source Code Mapping)
+
+This section maps the theoretical architecture to its actual Python implementation. The code below represents the core logic of the AI Resume Screening System, focusing on non-boilerplate intelligence and program flow.
+
+
+Layer 1: The NLP Pipeline (Intelligence)
+Defined in the pipeline/ directory.
+
+1. parse_resume(text, html_header=None)
+The semantic core that segments resumes into meaningful entities using spaCy and regex heuristics.
+
+def parse_resume(text, html_header=None):
+    if not text or len(text.strip()) < 20:
+        return _empty_result()
+    
+    nlp = _get_nlp()
+    Strategy: Hierarchical extraction (Contact -> Sections -> Skills -> Experience)
+    contact = _extract_contact_info(text, nlp, html_header=html_header)
+    
+    Segment into sections using precompiled regex patterns
+    sections = _segment_sections(text)
+    
+    SEMANTIC FALLBACK: If header detection fails, use NLP to classify paragraphs
+    if _is_poorly_segmented(sections):
+        sections = _contextual_segment(text, nlp)
+    
+    Structured entity extraction from parsed sections
+    extracted_skills = _extract_skills(sections.get('skills', ''), text, nlp)
+    years_exp = _estimate_years_experience(sections.get('experience', ''), text, sections)
+    edu_level = _detect_education_level(sections.get('education', ''), text)
+    
+    return {
+        'contact': contact,
+        'sections': sections,              # Raw text for ML scoring
+        'extracted_skills': extracted_skills,
+        'years_of_experience': years_exp,
+        'education_level': edu_level,
+    }
+
+
+2. screen_resumes(resume_inputs, job_description, weights=None, job_category='general')
+The master orchestrator that manages the end-to-end vectorization, scoring, and ranking pipeline.
+
+def screen_resumes(resume_inputs, job_description, weights=None, job_category='general'):
+    from config import Config
+    if weights is None:
+        weights = Config.DEFAULT_WEIGHTS.copy()
+    
+    1. Load learned preferences for this specific job category (Learning Loop)
+    from database.db import get_learned_preferences
+    prefs = get_learned_preferences(job_category)
+    if prefs and prefs.get('feedback_count', 0) >= Config.MIN_FEEDBACK_FOR_BIAS:
+        weights = prefs['adjusted_weights']
+        preference_centroid = np.array(prefs['preference_centroid'])
+        alpha = prefs['alpha']
+    
+    2. Vectorize the Job Description using Sentence-BERT
+    jd_embedding = encode_text(job_description)
+    
+    candidates = []
+    for resume_input in resume_inputs:
+        3. Content-Based Caching: Skip parsing if file hasn't changed
+        file_hash = hashlib.sha256(raw_text.encode('utf-8')).hexdigest()
+        cached_doc = get_cached_resume(file_hash)
+        
+        parsed = cached_doc['parsed'] if cached_doc else parse_resume(raw_text)
+        
+        4. Compute Semantic Similarity (Section-by-Section)
+        scoring = compute_section_scores(parsed, jd_embedding, job_description)
+        section_scores = scoring['section_scores']
+        full_embedding = scoring['full_embedding']
+        
+        5. Apply "Hard-Guard" Penalties (Stack Mismatch, Seniority Gap)
+        jd_score = compute_weighted_score(section_scores, weights)
+        
+        Seniority Penalty: Non-linear reduction based on years-of-experience gap
+        if years_exp < min_years_required:
+            gap_ratio = years_exp / min_years_required
+            jd_score *= (0.65 + (pow(gap_ratio, 1.5) * 0.35))
+            
+        6. Global Calibration: Mapping raw scores to [0.05, 0.98] range
+        calibrated_score = (jd_score - 0.18) / (1.05 - 0.18)
+        
+        7. Preference Blending: Blend JD score with learned bias centroid
+        final_score = alpha * calibrated_score + (1 - alpha) * pref_score
+        
+        candidates.append({**candidate_data, 'overall_score': round(final_score, 4)})
+    
+    return sorted(candidates, key=lambda c: c['overall_score'], reverse=True)
+
+
+3. compute_section_scores(parsed_resume, jd_embedding, jd_text="")
+Implements Signal Isolation. This prevents irrelevant text from diluting strong matches.
+
+def compute_section_scores(parsed_resume, jd_embedding, jd_text=""):
+    sections = parsed_resume.get('sections', {})
+    jd_skills = _extract_jd_requirements(jd_text) # Target skills from JD
+    section_scores = {}
+    
+    for section_name, section_text in sections.items():
+        Split into paragraphs to isolate "signals"
+        paragraphs = [p for p in section_text.split('\n\n') if len(p.strip()) > 20]
+        
+        para_scores = []
+        for p in paragraphs:
+            p_vec = encode_text(p)
+            similarity = cosine_similarity(p_vec, jd_embedding)
+            
+            SIGNAL DENSITY: Boost paragraphs that concentrate specific JD keywords
+            p_matches = sum(1 for s in jd_skills if s.lower() in p.lower())
+            density_factor = 0.8 + min(0.6, (p_matches / len(jd_skills)) * 2.0)
+            
+            para_scores.append(similarity * density_factor)
+        
+        SIGNAL ISOLATION: The section score is determined by the BEST matching paragraph
+        score = max(para_scores) if para_scores else 0.0
+        
+        Ontological Bonus: Higher credits for direct matches in the Skill section
+        if section_name == 'skills':
+            score += 0.10 + min(0.35, (matches / len(jd_skills)) * 0.55)
+            
+        section_scores[section_name] = max(0.0, min(1.3, score)) 
+    
+    return {'section_scores': section_scores}
+
+
+Layer 2: Data & Retrieval (Persistence)
+Defined in the database/ directory.
+
+1. VectorStore.build_index(embeddings_matrix, ids=None)
+Encapsulates FAISS logic for fast semantic retrieval.
+
+def build_index(self, embeddings_matrix, ids=None):
+    FAISS IndexFlatIP: Uses Inner Product for Similarity
+    Optimized in C++ for vector-matrix multiplication
+    index = faiss.IndexFlatIP(self.vector_dim)
+    
+    Ensure strict float32 and L2 normalization for Cosine Similarity equivalence
+    embeddings_matrix = np.array(embeddings_matrix, dtype=np.float32)
+    faiss.normalize_L2(embeddings_matrix)
+    
+    index.add(embeddings_matrix)
+    id_mapping = {i: _id for i, _id in enumerate(ids)} if ids else {}
+    
+    return index, id_mapping
+
+def search(self, index, query_vector, k=10):
+    k = min(k, index.ntotal)
+    Prepare query_vector (L2 normalization)
+    query_vector = np.array(query_vector, dtype=np.float32).reshape(1, -1)
+    faiss.normalize_L2(query_vector)
+    
+    Perform search on built index
+    distances, indices = index.search(query_vector, k)
+    return distances[0], indices[0]
+
+
+2. cache_resume(file_hash, parsed_data, full_embedding, raw_text)
+Persistent storage for computed resume profiles using MongoDB.
+
+def cache_resume(file_hash, parsed_data, full_embedding, raw_text):
+    get_db().resume_cache.update_one(
+        {'file_hash': file_hash},
+        {'$set': {
+            'parsed': parsed_data,
+            'full_embedding': full_embedding,
+            'raw_text': raw_text[:2000],
+            'cached_at': datetime.utcnow()
+        }},
+        upsert=True # Create if not exists
+    )
+
+
+Layer 3: Learning & Feedback (Adaptability)
+Defined in pipeline/feedback_learner.py.
+
+1. process_feedback(session_id, job_category='general')
+The feedback loop that updates preference centroids and section weights.
+
+def process_feedback(session_id, job_category='general'):
+    from database.db import get_feedback_for_category, save_learned_preferences
+    
+    1. Pull aggregated feedback signals for the role (across many sessions)
+    all_feedback = get_feedback_for_category(job_category)
+    shortlisted = [f for f in all_feedback if f['action'] == 'shortlisted']
+    rejected = [f for f in all_feedback if f['action'] == 'rejected']
+    
+    2. Adaptive Weights: Shift weights toward differentiating sections
+    adjusted_weights = _compute_adaptive_weights(shortlisted, rejected)
+    
+    3. Preference Centroid: The "Average Good Candidate" vector
+    embeddings = [np.array(f['embedding']) for f in shortlisted if f.get('embedding')]
+    preference_centroid = np.mean(embeddings, axis=0) if embeddings else None
+    
+    4. Save updated preferences to DB for future sessions
+    save_learned_preferences(
+        job_category=job_category,
+        adjusted_weights=adjusted_weights,
+        preference_centroid=preference_centroid,
+        alpha=new_alpha # Gradually decay alpha as we gain confidence
+    )
+
+
+2. _compute_adaptive_weights(shortlisted, rejected)
+Calculates how much a section differentiates successful candidates from failures.
+
+def _compute_adaptive_weights(shortlisted, rejected):
+    Differentiating Logic:
+    # discriminant = mean_score(shortlisted_section) - mean_score(rejected_section)
+    sections = ['skills', 'experience', 'education', 'projects', 'summary']
+    
+    discriminant = {}
+    for section in sections:
+        s_mean = np.mean([f['section_scores'].get(section, 0) for f in shortlisted])
+        r_mean = np.mean([f['section_scores'].get(section, 0) for f in rejected])
+        discriminant[section] = s_mean - r_mean
+    
+    Shift base weights based on learning_rate
+    adjusted = {}
+    for section in sections:
+        base = Config.DEFAULT_WEIGHTS.get(section, 0.2)
+        adjustment = Config.LEARNING_RATE * discriminant[section]
+        adjusted[section] = max(0.02, base + adjustment)
+    
+    Normalize to sum to 1.0 (Sum-to-100 logic)
+    total = sum(adjusted.values())
+    return {k: round(v / total, 4) for k, v in adjusted.items()}
+
+
+Layer 4: Application Routes (Interface)
+Defined in routes/screening.py.
+
+1. @screening_bp.route('/api/screen', methods=['POST'])
+Endpoint handling file uploads and triggering the asynchronous AI pipeline.
+
+@screening_bp.route('/api/screen', methods=['POST'])
+def screen():
+    1. Capture user inputs and job category
+    job_description = request.form.get('job_description', '').strip()
+    job_category = request.form.get('job_category', 'general').lower()
+    files = request.files.getlist('files[]')
+    
+    2. Initialize a persistent Screening Session
+    session_id = create_session(job_description, job_category, num_resumes=len(files))
+    
+    3. Offload high-latency AI tasks to a background thread
+    def _run_pipeline(app, sid, inputs, jd, cat):
+        with app.app_context():
+            The orchestrator is called in background
+            candidates = screen_resumes(inputs, jd, job_category=cat)
+            
+            Save results and update status once complete
+            save_candidates(sid, candidates)
+            update_session_status(sid, 'completed')
+            
+    Launch pipeline without blocking the user
+    threading.Thread(target=_run_pipeline, args=(current_app, session_id, ...)).start()
+    
+    return jsonify({'success': True, 'session_id': session_id, 'redirect': f'/status/{session_id}'})
+```

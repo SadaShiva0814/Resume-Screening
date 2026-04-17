@@ -146,7 +146,31 @@ def _ensure_indexes():
     db.feedback.create_index('session_id')
     db.feedback.create_index('job_category')
     db.learned_preferences.create_index('job_category', unique=True)
+    db.resume_cache.create_index('file_hash', unique=True)
 
+
+# ===================== Cache Operations =====================
+
+def get_cached_resume(file_hash):
+    """Retrieve a pre-computed resume profile by hash."""
+    return get_db().resume_cache.find_one({'file_hash': file_hash})
+
+def cache_resume(file_hash, parsed_data, full_embedding, raw_text):
+    """Store computed resume profile to avoid future re-parsing."""
+    try:
+        get_db().resume_cache.update_one(
+            {'file_hash': file_hash},
+            {'$set': {
+                'parsed': parsed_data,
+                'full_embedding': full_embedding,
+                'raw_text': raw_text[:2000],
+                'cached_at': datetime.utcnow()
+            }},
+            upsert=True
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to cache resume {file_hash[:8]}: {e}")
 
 # ===================== Session Operations =====================
 
@@ -157,6 +181,7 @@ def create_session(job_description, job_category=None, num_resumes=0, weights=No
         'job_description': job_description,
         'job_category': job_category or 'general',
         'num_resumes': num_resumes,
+        'processed_count': 0,
         'weights': weights,
         'status': 'processing',
         'created_at': datetime.utcnow(),
@@ -164,6 +189,15 @@ def create_session(job_description, job_category=None, num_resumes=0, weights=No
     }
     result = db.sessions.insert_one(session)
     return str(result.inserted_id)
+
+def update_session_progress(session_id, processed_count):
+    """Update how many resumes have currently been analyzed."""
+    from bson import ObjectId
+    db = get_db()
+    db.sessions.update_one(
+        {'_id': ObjectId(session_id)},
+        {'$set': {'processed_count': processed_count}}
+    )
 
 
 def update_session_status(session_id, status, num_resumes=None):

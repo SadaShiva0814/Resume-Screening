@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Enterprise ATS Search — AI Resume Screening{% endblock %}
+
+{% block content %}
+<div class="ats-container" style="max-width: 1000px; margin: 40px auto; padding: 0 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+        <div>
+            <h1 style="font-size: 2.2rem; margin-bottom: 0.5rem;">Enterprise ATS Search</h1>
+            <p style="color: var(--text-secondary); font-size: 1.05rem;">
+                Instantly search across <strong>{{ total_candidates }}</strong> historical candidates using FAISS semantic vector search.
+            </p>
+        </div>
+        <div style="background: var(--bg-card); padding: 10px 20px; border-radius: 8px; border: 1px solid var(--primary); text-align: right;">
+            <div style="font-size: 0.8rem; color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Engine</div>
+            <div style="font-size: 1.2rem; font-weight: 700;">FAISS <span style="font-size: 0.9rem; color: var(--text-muted);">Vector DB</span></div>
+        </div>
+    </div>
+
+    <!-- Search Box -->
+    <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        <form id="ats-search-form" style="display: flex; gap: 1rem;">
+            <div style="flex-grow: 1;">
+                <input type="text" id="search-query" class="form-control" style="width: 100%; font-size: 1.1rem; padding: 16px; border-radius: 8px;" placeholder="e.g. 'Senior Python developer with machine learning experience'" autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-primary" id="search-btn" style="padding: 0 32px; font-size: 1.1rem;">
+                Search 🚀
+            </button>
+        </form>
+    </div>
+
+    <!-- Results Area -->
+    <div id="results-area" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 id="results-title" style="margin: 0;">Top Matches</h3>
+            <span id="search-metrics" style="font-size: 0.9rem; color: var(--text-muted); background: var(--bg-card); padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border);"></span>
+        </div>
+
+        <div id="results-list" style="display: flex; flex-direction: column; gap: 1rem;">
+            <!-- Results injected here -->
+        </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div id="empty-state" style="text-align: center; padding: 4rem 2rem; background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border);">
+        <span style="font-size: 3rem; opacity: 0.5;">🔍</span>
+        <h3 style="margin-top: 1rem; color: var(--text-secondary);">Enter a semantic query to search your ATS</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">FAISS handles abstract meaning, not just keywords.</p>
+    </div>
+</div>
+
+<template id="result-template">
+    <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; display: flex; gap: 2rem; align-items: center; transition: transform 0.2s; cursor: default;" onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+        
+        <!-- Score Column -->
+        <div style="text-align: center; min-width: 80px;">
+            <div class="result-score" style="font-size: 2rem; font-weight: 800; color: var(--primary);"></div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Match</div>
+        </div>
+
+        <!-- Info Column -->
+        <div style="flex-grow: 1;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                <div>
+                    <h3 class="result-name" style="margin: 0 0 4px 0; font-size: 1.3rem;"></h3>
+                    <div style="color: var(--text-secondary); font-size: 0.95rem; display: flex; gap: 1rem;">
+                        <span class="result-role"></span>
+                        <span>•</span>
+                        <span class="result-exp"></span>
+                    </div>
+                </div>
+                <span class="result-file" style="font-family: monospace; font-size: 0.8rem; background: var(--bg-body); padding: 4px 8px; border-radius: 4px; color: var(--text-muted);"></span>
+            </div>
+            
+            <p class="result-preview" style="font-size: 0.85rem; color: var(--text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 12px; border-left: 2px solid var(--border); padding-left: 12px;"></p>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('ats-search-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const query = document.getElementById('search-query').value.trim();
+    if (!query) return;
+
+    const btn = document.getElementById('search-btn');
+    const emptyState = document.getElementById('empty-state');
+    const resultsArea = document.getElementById('results-area');
+    const resultsList = document.getElementById('results-list');
+    const metrics = document.getElementById('search-metrics');
+
+    btn.innerHTML = '<span class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></span>';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/api/ats/search', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ query: query, k: 10 })
+        });
+        
+        const data = await response.json();
+        
+        emptyState.style.display = 'none';
+        resultsArea.style.display = 'block';
+        resultsList.innerHTML = '';
+        
+        if (data.success) {
+            metrics.innerHTML = `Found <strong>${data.count}</strong> candidates in <strong style="color: var(--primary);">${data.search_time_ms}ms</strong>`;
+            
+            if (data.results.length === 0) {
+                resultsList.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-muted);">No matching candidates found in history.</div>';
+            } else {
+                const template = document.getElementById('result-template');
+                data.results.forEach(res => {
+                    const clone = template.content.cloneNode(true);
+                    clone.querySelector('.result-score').textContent = res.score + '%';
+                    clone.querySelector('.result-name').textContent = res.name || 'Unknown Candidate';
+                    clone.querySelector('.result-role').textContent = res.role || 'No Role specified';
+                    clone.querySelector('.result-exp').textContent = `${res.experience || 0} years exp`;
+                    clone.querySelector('.result-file').textContent = res.file_name.substring(0, 15) + '...';
+                    clone.querySelector('.result-preview').textContent = res.preview;
+                    resultsList.appendChild(clone);
+                });
+            }
+        } else {
+            alert('Search failed: ' + data.error);
+        }
+    } catch (err) {
+        alert('Request failed: ' + err.message);
+    } finally {
+        btn.innerHTML = 'Search 🚀';
+        btn.disabled = false;
+    }
+});
+</script>
+{% endblock %}

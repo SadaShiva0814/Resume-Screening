@@ -293,11 +293,11 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         
         if (currentMode === 'multi') {
-            document.getElementById('progress-title').textContent = 'Multi-Role Screening...';
-            document.getElementById('progress-text').textContent = 'Scoring resumes against all roles — this takes longer than single-role...';
+            document.getElementById('progress-title').textContent = 'Uploading Resumes...';
+            document.getElementById('progress-text').textContent = 'Preparing multi-role screening pipeline...';
         } else {
-            document.getElementById('progress-title').textContent = 'Processing Resumes...';
-            document.getElementById('progress-text').textContent = 'Extracting text and analyzing with AI...';
+            document.getElementById('progress-title').textContent = 'Uploading Resumes...';
+            document.getElementById('progress-text').textContent = 'Preparing AI screening pipeline...';
         }
 
         try {

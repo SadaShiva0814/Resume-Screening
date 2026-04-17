@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Processing — AI Resume Screening{% endblock %}
+
+{% block content %}
+<div class="status-container" style="max-width: 640px; margin: 80px auto; padding: 0 20px; text-align: center;">
+
+    <div class="status-card" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 3rem 2.5rem; box-shadow: 0 8px 32px rgba(0,0,0,0.12);">
+
+        <!-- Animated Brain Icon -->
+        <div class="brain-pulse" style="font-size: 3.5rem; margin-bottom: 1.5rem; animation: pulse 1.8s ease-in-out infinite;">🧠</div>
+
+        <h1 id="status-title" style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text);">
+            Analyzing Resumes...
+        </h1>
+        <p id="status-subtitle" style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 2rem;">
+            Our AI is extracting text, parsing sections, and computing semantic embeddings.
+        </p>
+
+        <!-- Progress Bar -->
+        <div style="background: var(--bg-input); border-radius: 999px; height: 22px; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--border);">
+            <div id="progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), #6366f1); border-radius: 999px; transition: width 0.5s ease; position: relative;">
+                <div style="position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); animation: shimmer 2s infinite;"></div>
+            </div>
+        </div>
+
+        <!-- Progress Text -->
+        <p id="progress-text" style="font-size: 1.1rem; font-weight: 600; color: var(--primary); margin-bottom: 0.25rem;">
+            0%
+        </p>
+        <p id="progress-detail" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 2rem;">
+            Processing 0 of {{ session.num_resumes }} resumes
+        </p>
+
+        <!-- Step Indicators -->
+        <div class="steps" style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+            <div class="step" id="step-extract" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-muted); transition: color 0.3s;">
+                <span>📄</span> Extracting Text
+            </div>
+            <div class="step" id="step-nlp" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-muted); transition: color 0.3s;">
+                <span>🔍</span> NLP Parsing
+            </div>
+            <div class="step" id="step-score" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-muted); transition: color 0.3s;">
+                <span>📊</span> Scoring
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Card (hidden by default) -->
+    <div id="error-card" style="display: none; background: #1a0a0a; border: 1px solid #7f1d1d; border-radius: 16px; padding: 2rem; margin-top: 1.5rem;">
+        <h3 style="color: #ef4444; margin-bottom: 0.5rem;">❌ Screening Failed</h3>
+        <p id="error-msg" style="color: #fca5a5; font-size: 0.9rem;">An error occurred during processing.</p>
+        <a href="/upload" class="btn btn-outline" style="margin-top: 1rem; display: inline-block;">← Try Again</a>
+    </div>
+</div>
+
+<style>
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.85; }
+}
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const sessionId = "{{ session._id }}";
+    const totalResumes = {{ session.num_resumes }};
+    let pollInterval;
+
+    function updateUI(data) {
+        const pct = data.progress_pct || 0;
+        const processed = data.processed_count || 0;
+        const total = data.total_resumes || totalResumes;
+
+        // Progress bar
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('progress-text').textContent = pct + '%';
+        document.getElementById('progress-detail').textContent = `Processing ${processed} of ${total} resumes`;
+
+        // Step highlights
+        if (pct > 0) document.getElementById('step-extract').style.color = 'var(--primary)';
+        if (pct > 25) document.getElementById('step-nlp').style.color = 'var(--primary)';
+        if (pct > 60) document.getElementById('step-score').style.color = 'var(--primary)';
+
+        // Title updates
+        if (pct >= 90) {
+            document.getElementById('status-title').textContent = 'Almost Done...';
+            document.getElementById('status-subtitle').textContent = 'Finalizing rankings and computing analytics.';
+        } else if (pct >= 50) {
+            document.getElementById('status-title').textContent = 'Scoring Candidates...';
+            document.getElementById('status-subtitle').textContent = 'Computing semantic similarity scores against the job description.';
+        }
+
+        // Redirect on completion
+        if (data.status === 'completed' && data.redirect) {
+            document.getElementById('progress-bar').style.width = '100%';
+            document.getElementById('progress-text').textContent = '100%';
+            document.getElementById('status-title').textContent = '✅ Complete!';
+            document.getElementById('status-subtitle').textContent = 'Redirecting to results...';
+            clearInterval(pollInterval);
+            setTimeout(() => { window.location.href = data.redirect; }, 800);
+        }
+
+        // Handle failure
+        if (data.status === 'failed') {
+            clearInterval(pollInterval);
+            document.getElementById('error-card').style.display = 'block';
+            if (data.error) document.getElementById('error-msg').textContent = data.error;
+            document.getElementById('status-title').textContent = 'Processing Stopped';
+            document.getElementById('status-subtitle').textContent = '';
+            document.querySelector('.brain-pulse').style.animation = 'none';
+        }
+    }
+
+    async function pollStatus() {
+        try {
+            const resp = await fetch(`/api/status/${sessionId}`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            updateUI(data);
+        } catch (e) {
+            console.error('Poll error:', e);
+        }
+    }
+
+    // Start polling every 1.5 seconds
+    pollInterval = setInterval(pollStatus, 1500);
+    // Also poll immediately
+    pollStatus();
+})();
+</script>
+{% endblock %}

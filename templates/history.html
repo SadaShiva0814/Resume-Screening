@@ -6,74 +6,86 @@
     <h1>Screening History</h1>
     <p class="history-subtitle">View past screening sessions and their results.</p>
 
-    <div class="history-actions" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-        <div class="selection-actions" style="display: flex; align-items: center; gap: 15px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+    <div class="history-controls">
+        <div class="search-bar-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="historySearch" class="search-input" placeholder="Search sessions by role, JD, or status..." onkeyup="filterSessions()">
+        </div>
+        
+        <div class="selection-actions" style="display: flex; align-items: center; gap: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem;">
                 <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()">
                 <span>Select All</span>
             </label>
             <button type="button" id="bulkDeleteBtn" onclick="deleteSelectedSessions()" class="btn btn-danger btn-sm" style="display: none; background-color:rgba(239, 68, 68, 0.1); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2);">Delete Selected (<span id="selectedCount">0</span>)</button>
+            <button type="button" id="clearAllBtn" onclick="clearAllHistory()" class="btn btn-outline btn-sm" style="color: var(--text-muted); border-color: var(--border);">Flush History</button>
         </div>
     </div>
 
-    <!-- Multi-Role Sessions -->
-    {% if multi_sessions %}
-    <div class="sessions-list" style="margin-bottom: 2rem;">
-        {% for ms in multi_sessions %}
-        <div class="session-card" style="display: flex; align-items: stretch; padding: 0;">
-            <div style="padding: 20px; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border-color);">
-                <input type="checkbox" class="session-checkbox multi-checkbox" value="{{ ms._id }}" data-type="multi" onchange="updateSelection()">
-            </div>
-            <div class="session-info" style="flex-grow: 1; padding: 20px;">
-                <h3>
-                    <span style="display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; background: rgba(99,102,241,0.15); color: var(--primary); margin-right: 8px; vertical-align: middle;">Multi-Role</span>
-                    {{ ms.total_roles }} Roles — {{ ms.total_resumes }} Resumes
-                </h3>
-                <p class="session-jd" style="color: var(--text-secondary); font-size: 0.85rem;">
-                    {% for role in ms.roles %}{{ role.title }} ({{ role.candidate_count }}){% if not loop.last %} · {% endif %}{% endfor %}
-                </p>
-                <div class="session-meta">
-                    <span class="session-status status-{{ ms.status }}">{{ ms.status|title }}</span>
-                    <span>{{ ms.created_at.strftime('%d %b %Y, %I:%M %p') if ms.created_at else 'N/A' }}</span>
-                    {% if ms.versatile_candidates %}<span style="color: var(--primary);">🔀 {{ ms.versatile_candidates|length }} versatile</span>{% endif %}
-                </div>
-            </div>
-            <div class="session-actions" style="padding: 20px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid var(--border-color); gap: 10px;">
-                <a href="/multi/results/{{ ms._id }}" class="btn btn-primary btn-sm">View Results</a>
-                <button type="button" onclick="deleteMultiSession('{{ ms._id }}', this)" class="btn btn-danger btn-sm" style="background-color:rgba(239, 68, 68, 0.1); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2);">Delete</button>
-            </div>
-        </div>
-        {% endfor %}
+    <div class="history-stats" id="historyStats" style="margin-bottom: 15px;">
+        Showing {{ multi_sessions|length + sessions|length }} sessions
     </div>
-    {% endif %}
 
-    <!-- Single-Role Sessions -->
-    {% if sessions %}
-    <div class="sessions-list">
-        {% for session in sessions %}
-        <div class="session-card" style="display: flex; align-items: stretch; padding: 0;">
-            <div style="padding: 20px; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border-color);">
-                <input type="checkbox" class="session-checkbox" value="{{ session._id }}" onchange="updateSelection()">
-            </div>
-            <div class="session-info" style="flex-grow: 1; padding: 20px;">
-                <h3>{{ session.job_category|replace('_',' ')|title }} — {{ session.num_resumes }} Candidates</h3>
-                <p class="session-jd">{{ session.job_description[:150] }}...</p>
-                <div class="session-meta">
-                    <span class="session-status status-{{ session.status }}">{{ session.status|title }}</span>
-                    <span>{{ session.created_at.strftime('%d %b %Y, %I:%M %p') if session.created_at else 'N/A' }}</span>
+    <div class="history-scroll-container">
+        <!-- Multi-Role Sessions -->
+        {% if multi_sessions %}
+        <div class="sessions-list" style="margin-bottom: 2rem;">
+            {% for ms in multi_sessions %}
+            <div class="session-card" data-search="{{ ms.total_roles }} Roles {{ ms.total_resumes }} Resumes {% for role in ms.roles %}{{ role.title }}{% endfor %} {{ ms.status }}" style="display: flex; align-items: stretch; padding: 0;">
+                <div style="padding: 20px; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border-color);">
+                    <input type="checkbox" class="session-checkbox multi-checkbox" value="{{ ms._id }}" data-type="multi" onchange="updateSelection()">
+                </div>
+                <div class="session-info" style="flex-grow: 1; padding: 20px;">
+                    <h3>
+                        <span style="display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; background: rgba(99,102,241,0.15); color: var(--primary); margin-right: 8px; vertical-align: middle;">Multi-Role</span>
+                        {{ ms.total_roles }} Roles — {{ ms.total_resumes }} Resumes
+                    </h3>
+                    <p class="session-jd" style="color: var(--text-secondary); font-size: 0.85rem;">
+                        {% for role in ms.roles %}{{ role.title }} ({{ role.candidate_count }}){% if not loop.last %} · {% endif %}{% endfor %}
+                    </p>
+                    <div class="session-meta">
+                        <span class="session-status status-{{ ms.status }}">{{ ms.status|title }}</span>
+                        <span>{{ ms.created_at.strftime('%d %b %Y, %I:%M %p') if ms.created_at else 'N/A' }}</span>
+                        {% if ms.versatile_candidates %}<span style="color: var(--primary);">🔀 {{ ms.versatile_candidates|length }} versatile</span>{% endif %}
+                    </div>
+                </div>
+                <div class="session-actions" style="padding: 20px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid var(--border-color); gap: 10px;">
+                    <a href="/multi/results/{{ ms._id }}" class="btn btn-primary btn-sm">View Results</a>
+                    <button type="button" onclick="deleteMultiSession('{{ ms._id }}', this)" class="btn btn-danger btn-sm" style="background-color:rgba(239, 68, 68, 0.1); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2);">Delete</button>
                 </div>
             </div>
-            <div class="session-actions" style="padding: 20px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid var(--border-color); gap: 10px;">
-                {% if session.status == 'completed' %}
-                <a href="/results/{{ session._id }}" class="btn btn-primary btn-sm">View Results</a>
-                <a href="/analytics/{{ session._id }}" class="btn btn-outline btn-sm">Analytics</a>
-                {% endif %}
-                <button type="button" onclick="deleteSession('{{ session._id }}', this)" class="btn btn-danger btn-sm" style="background-color:rgba(239, 68, 68, 0.1); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2);">Delete</button>
-            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
+        {% endif %}
+
+        <!-- Single-Role Sessions -->
+        {% if sessions %}
+        <div class="sessions-list">
+            {% for session in sessions %}
+            <div class="session-card" data-search="{{ session.job_category }} {{ session.job_description }} {{ session.status }}" style="display: flex; align-items: stretch; padding: 0;">
+                <div style="padding: 20px; display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--border-color);">
+                    <input type="checkbox" class="session-checkbox" value="{{ session._id }}" onchange="updateSelection()">
+                </div>
+                <div class="session-info" style="flex-grow: 1; padding: 20px;">
+                    <h3>{{ session.job_category|replace('_',' ')|title }} — {{ session.num_resumes }} Candidates</h3>
+                    <p class="session-jd">{{ session.job_description[:150] }}...</p>
+                    <div class="session-meta">
+                        <span class="session-status status-{{ session.status }}">{{ session.status|title }}</span>
+                        <span>{{ session.created_at.strftime('%d %b %Y, %I:%M %p') if session.created_at else 'N/A' }}</span>
+                    </div>
+                </div>
+                <div class="session-actions" style="padding: 20px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid var(--border-color); gap: 10px;">
+                    {% if session.status == 'completed' %}
+                    <a href="/results/{{ session._id }}" class="btn btn-primary btn-sm">View Results</a>
+                    <a href="/analytics/{{ session._id }}" class="btn btn-outline btn-sm">Analytics</a>
+                    {% endif %}
+                    <button type="button" onclick="deleteSession('{{ session._id }}', this)" class="btn btn-danger btn-sm" style="background-color:rgba(239, 68, 68, 0.1); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.2);">Delete</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
 
     {% if not sessions and not multi_sessions %}
     <div class="empty-state">
@@ -86,11 +98,96 @@
 </div>
 
 <script>
+    function filterSessions() {
+        const query = document.getElementById('historySearch').value.toLowerCase();
+        const cards = document.querySelectorAll('.session-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const searchText = card.getAttribute('data-search').toLowerCase();
+            if (searchText.includes(query)) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        const stats = document.getElementById('historyStats');
+        stats.textContent = `Showing ${visibleCount} sessions`;
+
+        // If no results, show a hint
+        const emptyHint = document.getElementById('noResultsHint');
+        if (visibleCount === 0 && query !== '') {
+            if (!emptyHint) {
+                const hint = document.createElement('div');
+                hint.id = 'noResultsHint';
+                hint.style.padding = '2rem';
+                hint.style.textAlign = 'center';
+                hint.style.color = 'var(--text-muted)';
+                hint.innerHTML = `No sessions match "<strong>${query}</strong>"`;
+                document.querySelector('.history-scroll-container').appendChild(hint);
+            } else {
+                emptyHint.innerHTML = `No sessions match "<strong>${query}</strong>"`;
+                emptyHint.style.display = 'block';
+            }
+        } else if (emptyHint) {
+            emptyHint.style.display = 'none';
+        }
+    }
+
+    async function clearAllHistory() {
+        const btn = document.getElementById('clearAllBtn');
+        if (!btn.dataset.confirmed) {
+            btn.dataset.confirmed = "true";
+            btn.innerText = 'Click to Confirm Flush';
+            btn.style.borderColor = 'var(--danger)';
+            btn.style.color = 'var(--danger)';
+            setTimeout(() => {
+                delete btn.dataset.confirmed;
+                btn.innerText = 'Flush History';
+                btn.style.borderColor = '';
+                btn.style.color = '';
+            }, 3000);
+            return;
+        }
+
+        const checkboxes = document.querySelectorAll('.session-checkbox');
+        const sessionIds = Array.from(checkboxes).map(cb => cb.value);
+        if (sessionIds.length === 0) return;
+
+        btn.innerText = 'Flushing...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/sessions/bulk', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_ids: sessionIds })
+            });
+
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to clear history');
+                btn.disabled = false;
+                btn.innerText = 'Flush History';
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error clearing history');
+            btn.disabled = false;
+        }
+    }
+
     function toggleSelectAll() {
         const isChecked = document.getElementById('selectAllCheckbox').checked;
         const checkboxes = document.querySelectorAll('.session-checkbox');
         checkboxes.forEach(cb => {
-            cb.checked = isChecked;
+            const card = cb.closest('.session-card');
+            if (card && card.style.display !== 'none') {
+                cb.checked = isChecked;
+            }
         });
         updateSelection();
     }
