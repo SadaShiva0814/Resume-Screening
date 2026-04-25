@@ -97,6 +97,20 @@ class MockCollection:
             if match: to_delete.append(id)
         for id in to_delete: del self.data[id]
 
+    def distinct(self, field):
+        values = set()
+        for doc in self.data.values():
+            val = doc.get(field)
+            if val is not None:
+                values.add(val)
+        return list(values)
+
+    def count_documents(self, query=None):
+        if not query:
+            return len(self.data)
+        return len([d for d in self.data.values()
+                    if all(d.get(k) == v for k, v in query.items())])
+
     def create_index(self, *args, **kwargs): pass
 
 class MockDB:

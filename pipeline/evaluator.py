@@ -15,7 +15,6 @@ we use established proxy metrics to evaluate ranking quality:
 import numpy as np
 import logging
 import re
-import random
 
 logger = logging.getLogger(__name__)
 

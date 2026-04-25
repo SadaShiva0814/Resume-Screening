@@ -111,8 +111,6 @@ graph TD
 
 ---
 
-## 🤝 Contribution & Testing
-Unit tests and scoring validation scripts are located in `tests/` and `scratch/`. To run the scoring validation:
-```bash
-python3 scratch/test_scoring.py
-```
+## 🤝 Contribution
+
+Contributions are welcome. To get started, clone the repository, set up the virtual environment, and run `python3 app.py` to start the development server.
