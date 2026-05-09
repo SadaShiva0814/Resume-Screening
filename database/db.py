@@ -117,6 +117,28 @@ class MockDB:
     """Mock MongoDB database."""
     def __init__(self):
         self._collections = {}
+        import os, json
+        seed_path = os.path.join(os.path.dirname(__file__), 'seed_data.json')
+        if os.path.exists(seed_path):
+            try:
+                with open(seed_path, 'r') as f:
+                    seed_data = json.load(f)
+                from datetime import datetime
+                for coll_name, docs in seed_data.items():
+                    coll = MockCollection(coll_name)
+                    for doc in docs:
+                        for field in ['created_at', 'completed_at', 'timestamp', 'cached_at', 'last_updated']:
+                            if field in doc and isinstance(doc[field], str):
+                                try:
+                                    doc[field] = datetime.fromisoformat(doc[field])
+                                except Exception:
+                                    pass
+                        coll.data[str(doc['_id'])] = doc
+                    self._collections[coll_name] = coll
+                print(f">>> MockDB: Loaded {sum(len(c.data) for c in self._collections.values())} documents from seed data.")
+            except Exception as e:
+                print(f">>> MockDB: Failed to load seed data: {e}")
+
     def __getitem__(self, name):
         if name not in self._collections:
             self._collections[name] = MockCollection(name)
