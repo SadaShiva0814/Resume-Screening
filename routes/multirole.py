@@ -125,7 +125,6 @@ def screen_multi_role():
                 save_analytics, create_multi_session, update_session_progress,
                 get_db
             )
-            from bson import ObjectId
             try:
                 logger.info(f"Starting multi-role screening: {len(inputs)} resumes × {len(jds)} roles")
                 
@@ -182,7 +181,7 @@ def screen_multi_role():
                 
                 db = get_db()
                 db.multi_sessions.update_one(
-                    {'_id': ObjectId(multi_session_id)},
+                    {'_id': str(multi_session_id)},
                     {'$set': {
                         'versatile_candidates': results['versatile'],
                         'unmatched_count': len(results['unmatched']),
@@ -192,13 +191,13 @@ def screen_multi_role():
                 # Link child sessions back to the parent multi-session
                 for rd in roles_data:
                     db.sessions.update_one(
-                        {'_id': ObjectId(rd['session_id'])},
+                        {'_id': str(rd['session_id'])},
                         {'$set': {'multi_session_id': str(multi_session_id)}}
                     )
                 
                 # Mark the tracker as completed and store the redirect target
                 db.sessions.update_one(
-                    {'_id': ObjectId(tracker_sid)},
+                    {'_id': str(tracker_sid)},
                     {'$set': {
                         'status': 'completed',
                         'completed_at': __import__('datetime').datetime.utcnow(),

@@ -48,8 +48,7 @@ def create_app():
     # Template context processors
     @app.context_processor
     def inject_db_status():
-        from database.db import is_lite_mode
-        return dict(is_lite_mode=is_lite_mode())
+        return dict(is_lite_mode=False)
     
     # Error handlers
     @app.errorhandler(404)
@@ -71,7 +70,7 @@ def create_app():
     logger.info("="*60)
     logger.info("AI Resume Screening System — Started")
     logger.info(f"Embedding Model: {Config.EMBEDDING_MODEL}")
-    logger.info(f"MongoDB: {Config.MONGO_DB_NAME}")
+    logger.info(f"Database: Persistent JSON Store")
     logger.info("="*60)
     
     return app

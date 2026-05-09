@@ -155,6 +155,8 @@ logs/
 *.pkl
 *.joblib
 scratch/
+database/store.json
+database/store.json.tmp
 
 # macOS
 .DS_Store

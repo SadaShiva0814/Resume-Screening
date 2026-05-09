@@ -24,7 +24,6 @@ def ats_search():
     from database.vector_store import vector_store
     from models.embedder import encode_text
     from database.db import get_db
-    from bson import ObjectId
     
     data = request.get_json()
     query = data.get('query', '').strip()
@@ -59,7 +58,7 @@ def ats_search():
             if not doc_id:
                 continue
                 
-            candidate_doc = db.resume_cache.find_one({'_id': ObjectId(doc_id)})
+            candidate_doc = db.resume_cache.find_one({'_id': str(doc_id)})
             if candidate_doc:
                 # Expand FAISS dot-product (0 to 1) into a natural percentage match
                 score_pct = max(0, min(100, math.floor(((dist - 0.15) / (1.0 - 0.15)) * 100)))

@@ -10,11 +10,8 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'resume-screening-secret-key-2026')
     DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
     
-    # MongoDB
-    # Priority: Env Var > Atlas String (if provided) > Localhost
-    MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
-    MONGO_DB_NAME = os.getenv('MONGO_DB_NAME', 'resume_screening')
-    MONGO_TIMEOUT_MS = 3000  # 3 seconds timeout for HF fallback
+    # Database (Persistent JSON Document Store — no external server needed)
+    DB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database')
     
     # Hugging Face Detection
     IS_HF = os.getenv('SPACE_ID') is not None
